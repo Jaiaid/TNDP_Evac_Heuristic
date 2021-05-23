@@ -147,7 +147,7 @@ def save_graph_as_json(distance_matrix, file_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 6:
-        print("Usage: python main.py distance_file demand_file pickup_point_list_file max_hop_count weight")
+        print("Usage: python3 main.py distance_file demand_file pickup_point_list_file max_hop_count weight")
         exit(0)
 
     dist_file = Path(sys.argv[1])
