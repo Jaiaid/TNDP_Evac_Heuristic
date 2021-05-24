@@ -8,7 +8,9 @@ AGENT_PLAN_TAG=["<plan>", "</plan>"]
 AGENT_ACT_DESC_TAG=["<act type=\"{0}\" x=\"{1}\" y=\"{2}\" />"]
 AGENT_LEG_DESC_TAG=["<leg mode=\"{0}\" />"]
 
-TYPE_STR="home"
+TYPE_STR1="home"
+TYPE_STR2="shelter"
+
 LEG_MODE_STR="pt" 
 
 def create_pop_file(demand_graph, file_name):
@@ -33,9 +35,9 @@ def write_persons_tag(file_stream, demand_graph):
                 for k in range(person_count):
                     file_stream.write(AGENT_TAG[0].format(id_no)+'\n')
                     file_stream.write(AGENT_PLAN_TAG[0]+'\n')
-                    write_act_desc(file_stream, TYPE_STR, x_src, y_src)
+                    write_act_desc(file_stream, TYPE_STR1, x_src, y_src)
                     write_leg_desc(file_stream, LEG_MODE_STR)
-                    write_act_desc(file_stream, TYPE_STR, x_dest, y_dest)
+                    write_act_desc(file_stream, TYPE_STR2, x_dest, y_dest)
                     file_stream.write(AGENT_PLAN_TAG[1]+'\n')
                     file_stream.write(AGENT_TAG[1]+'\n')
                     id_no += 1
