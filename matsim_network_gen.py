@@ -40,11 +40,13 @@ def write_node_desc(file_stream, id_no, x, y):
 
 
 def write_links_tag(file_stream, network_graph):
+    id_no = 0
     file_stream.write(LINK_TAG[0]+'\n')
     for i in range(len(network_graph)):
         for j in range(len(network_graph[i])):
             if network_graph[i][j] > 0:
-                write_link_desc(file_stream, i, i, j, network_graph[i][j], CAPACITY, SPEED, LANE_COUNT, MODE_STR) 
+                write_link_desc(file_stream, id_no, i, j, network_graph[i][j], CAPACITY, SPEED, LANE_COUNT, MODE_STR)
+                id_no += 1
     file_stream.write(LINK_TAG[1]+'\n')
 
 
