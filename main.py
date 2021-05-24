@@ -161,13 +161,14 @@ if __name__ == "__main__":
         graph = save_graph_as_json(distance_matrix, dist_file)
 
     mean = lambda l: sum(l) / len(l)
-    print('Average distance: {}'.format(mean(list(map(lambda d:d[2], graph.edges.data(data='weight'))))))
+    #print('Average distance: {}'.format(mean(list(map(lambda d:d[2], graph.edges.data(data='weight'))))))
 
     demand_file = Path(sys.argv[2])
     demand_matrix = read_matrix(demand_file)
 
-    print('Average demand: {}'.format(demand_matrix[np.nonzero(demand_matrix)].mean()))
-    print('Total demand: {}'.format(demand_matrix.sum()))
+    #print('Average demand: {}'.format(demand_matrix[np.nonzero(demand_matrix)].mean()))
+    #print('Total demand: {}'.format(demand_matrix.sum()))
+    print('{0}'.format(demand_matrix.sum()))
 
     with(open(sys.argv[3])) as pickup_point_file:
         for line in pickup_point_file.readlines():
@@ -187,9 +188,9 @@ if __name__ == "__main__":
             pass
 
     for tup in sorted(gen_route_demand_tuple_list, key=lambda tup: tup[1], reverse=True):
-        print('[', end='')
+        print(tup[1])
         for idx, node in enumerate(tup[0]):
             if idx > 0:
-               print(', ', end='')
+               print(' ', end='')
             print(node, end='')	
-        print(']')
+        print('')
