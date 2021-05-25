@@ -11,6 +11,6 @@ WEIGHT=1
 
 for hop_count in $(seq $MIN_HOP $MAX_HOP); 
 do 
-    python3 main.py ../data/Halifax/HalifaxDistances.txt ../data/Halifax/HalifaxOriginDestination.txt ../data/Halifax/HalifaxPickupPoint.txt $hop_count $WEIGHT > $DIR/halifax_${hop_count}_${WEIGHT}_result.txt
+    time python3 main.py ../data/Halifax/HalifaxDistances.txt ../data/Halifax/HalifaxOriginDestination.txt ../data/Halifax/HalifaxPickupPoint.txt $hop_count $WEIGHT > $DIR/halifax_${hop_count}_${WEIGHT}_result.txt
 done
 
