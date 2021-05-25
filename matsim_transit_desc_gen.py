@@ -22,9 +22,10 @@ TRANSIT_DESC_TAG=[
 
 TRANSIT_VEHICLE_TAG=["<vehicle id=\"{0}\" type=\"{1}\"/>"]
 
+TOTAL_BUS = 300
 TRANSIT_VEHICLE_TYPE_PROP_DICT = \
 {
-    "bus": {"count": 300, "seat": 40, "standing": 10, "length": 8}
+    "bus": {"count": TOTAL_BUS, "seat": 40, "standing": 10, "length": 8}
 }
 
 
