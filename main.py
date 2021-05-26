@@ -5,6 +5,8 @@ import numpy as np
 from pathlib import Path
 
 
+
+
 gen_route_demand_tuple_list = []
 pickup_point_list = []
 
@@ -22,9 +24,18 @@ def get_last_touched_zone(route):
             return route[i]
     return None
 
-def read_matrix(path):
+def read_demand_matrix(path):
     text = path.read_text()
     numbers = list(map(float, text.split()))
+    size = int(numbers[0])
+    matrix = np.array(numbers[1:]).reshape(size, size)
+    return matrix
+
+
+def read_distance_matrix(path):
+    text = path.read_text()
+    numbers_tmp = list(map(float, text.split()))
+    numbers = [float("inf") if number < 0 else number for number in numbers_tmp ]
     size = int(numbers[0])
     matrix = np.array(numbers[1:]).reshape(size, size)
     return matrix
@@ -103,12 +114,17 @@ def get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count,
             route_chunk = get_best_route_between(source, source2, graph, demand_matrix, weight)
         except nx.NetworkXNoPath as e:
             break
+
         route_chunk = route_chunk[1:]
         if get_route_len(route) < max_hop_count:
+            route_to_dest = get_best_route_between(source2, dest, graph, demand_matrix, weight)
+            if len(route_to_dest) == 2 and graph[route_to_dest[0]][route_to_dest[1]]["weight"] == float("inf"):
+                break
             route.extend(route_chunk)
         else:
+            alter = not alter
             break
-        
+
         demand_matrix, _ = set_demand_satisfied_in_route(demand_matrix, route, dest)
         source = source2
         # source, dest = source2, get_highest_demand_destination_from(dest, demand_matrix)
@@ -117,7 +133,8 @@ def get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count,
         alter = not alter
         iteration_count += 1
 
-    route_chunk = get_best_route_between(source2, dest, graph, demand_matrix, weight)
+    route_chunk = get_best_route_between(source, dest, graph, demand_matrix, weight)
+
     route.extend(route_chunk[1:])
     demand_matrix, _ = set_demand_satisfied_in_route(demand_matrix, route, dest)
     disconnect_nodes_in_route_from_graph(graph, route[:-1])
@@ -135,13 +152,13 @@ def get_routes(graph, demand_matrix, weight, min_hop_count, max_hop_count):
 
 
 def save_graph_as_json(distance_matrix, file_path):
-    distance_matrix = distance_matrix.copy()
-    distance_matrix[distance_matrix == -1] = 0
-    graph = nx.convert_matrix.from_numpy_matrix(distance_matrix)
+    distance_matrix1 = distance_matrix.copy()
+    graph = nx.convert_matrix.from_numpy_matrix(distance_matrix1, create_using=nx.DiGraph)
     dest_path = file_path.parent/(file_path.stem + '.json')
     data = nx.readwrite.json_graph.node_link_data(graph)
     with open(dest_path, 'w') as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
+
     return graph
 
 
@@ -157,14 +174,14 @@ if __name__ == "__main__":
         graph = nx.readwrite.json_graph.node_link_graph(data)
         distance_matrix = nx.convert_matrix.to_numpy_matrix(graph)
     else:
-        distance_matrix = read_matrix(dist_file)
+        distance_matrix = read_distance_matrix(dist_file)
         graph = save_graph_as_json(distance_matrix, dist_file)
 
     mean = lambda l: sum(l) / len(l)
     #print('Average distance: {}'.format(mean(list(map(lambda d:d[2], graph.edges.data(data='weight'))))))
 
     demand_file = Path(sys.argv[2])
-    demand_matrix = read_matrix(demand_file)
+    demand_matrix = read_demand_matrix(demand_file)
 
     #print('Average demand: {}'.format(demand_matrix[np.nonzero(demand_matrix)].mean()))
     #print('Total demand: {}'.format(demand_matrix.sum()))
