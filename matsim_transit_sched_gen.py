@@ -85,7 +85,7 @@ def create_schedule_file(file_name):
 def write_stop_nodes(file_stream):
     file_stream.write(TRANSIT_STOP_TAG[0]+"\n")
     for id_no in stop_id_dict:
-        write_stop_desc(file_stream, stop_id)
+        write_stop_desc(file_stream, id_no)
     file_stream.write(TRANSIT_STOP_TAG[1]+"\n")
 
 def write_stop_desc(file_stream, stop_id):
@@ -100,8 +100,8 @@ def write_stop_desc(file_stream, stop_id):
 
 def write_transit_lines(file_stream, id_no):
     file_stream.write(TRANSIT_LINE_TAG[0].format(id_no, id_no, "pt")+"\n")
-    write_route_profile(file_stream)
-    write_route(file_stream)
+    write_route_profile(file_stream, id_no)
+    write_route(file_stream, id_no)
     write_depertures(file_stream, id_no)
     file_stream.write(TRANSIT_LINE_TAG[1] + "\n")
 
@@ -119,20 +119,21 @@ def write_route(file_stream, id_no):
         if idx > 0:
             file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(route_list[id_no][idx - 1], node)])+'\n')
     # return route
-    for idx in range(len(route_list[id_no])-1, 0, -1):
-        if idx > 0:
-            file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(route_list[id_no][idx], route_list[id_no][idx - 1])])+'\n')
+    #for idx in range(len(route_list[id_no])-1, 0, -1):
+    #    if idx > 0:
+    #        file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(route_list[id_no][idx], route_list[id_no][idx - 1])])+'\n')
 
-    file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(node, route_list[idx - 1])])+'\n')
+    #file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(node, route_list[idx - 1])])+'\n')
     file_stream.write(ROUTE_TAG[1]+"\n")
 
 def write_depertures(file_stream, id_no):
+    global allocated_upto_bus_id, allocated_upto_deperture_id
     file_stream.write(DEPERTURE_TAG[0]+"\n")
-    for i in range(allocated_bus_id, route_list[id_no]):
+    for i in range(len(route_list[id_no])):
         file_stream.write(DEPERTURE_DESC_TAG[0].format(
             allocated_upto_deperture_id, "00:00:00", 
-            VEHICLE_ID_FORMAT.format(allocated_bus_id))+'\n')
-        allocated_bus_id += 1
+            VEHICLE_ID_FORMAT.format(allocated_upto_bus_id))+'\n')
+        allocated_upto_bus_id += 1
         allocated_upto_deperture_id += 1
     file_stream.write(DEPERTURE_TAG[1]+"\n")
 
