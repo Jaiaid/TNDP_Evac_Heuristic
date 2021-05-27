@@ -1,4 +1,5 @@
 import sys
+import sim_conf as CONF
 
 NETWORK_NAME="halifax evacuation"
 
@@ -22,19 +23,13 @@ TRANSIT_DESC_TAG=[
 
 TRANSIT_VEHICLE_TAG=["<vehicle id=\"{0}\" type=\"{1}\"/>"]
 
-TOTAL_BUS = 300
-TRANSIT_VEHICLE_TYPE_PROP_DICT = \
-{
-    "bus": {"count": TOTAL_BUS, "seat": 40, "standing": 10, "length": 8}
-}
-
 
 def create_vehicle_file(file_name):
     with open(file_name, "w") as fout:
         fout.write(ROOT_TAG[0]+"\n")
 
-        for idx, vehicle_name in enumerate(TRANSIT_VEHICLE_TYPE_PROP_DICT):
-            prop = TRANSIT_VEHICLE_TYPE_PROP_DICT[vehicle_name]
+        for idx, vehicle_name in enumerate(CONF.TRANSIT_VEHICLE_TYPE_PROP_DICT):
+            prop = CONF.TRANSIT_VEHICLE_TYPE_PROP_DICT[vehicle_name]
             write_vehicle_desc(fout, idx, vehicle_name, prop["seat"], prop["standing"], prop["length"])
 
             for num in range(prop["count"]):

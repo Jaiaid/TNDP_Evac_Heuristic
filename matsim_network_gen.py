@@ -1,4 +1,5 @@
 import sys
+import sim_conf as CONF
 
 NETWORK_NAME="halifax evacuation"
 
@@ -14,11 +15,6 @@ LINK_TAG=["<links>","</links>"]
 LINK_DESCRIPTION_TAG=["<link id=\"{0}\" from=\"{1}\" to=\"{2}\" length=\"{3}\" capacity=\"{4}\" \
 freespeed=\"{5}\" permlanes=\"{6}\" modes=\"{7}\" />"]
 
-
-CAPACITY=500
-LANE_COUNT=2
-SPEED=60
-MODE_STR="pt" 
 
 def create_network_file(network_graph, file_name):
     with open(file_name, "w") as fout:
@@ -50,7 +46,7 @@ def write_links_tag(file_stream, network_graph):
     for i in range(len(network_graph)):
         for j in range(len(network_graph[i])):
             if network_graph[i][j] > 0:
-                write_link_desc(file_stream, id_no, i, j, network_graph[i][j], CAPACITY, SPEED, LANE_COUNT, MODE_STR)
+                write_link_desc(file_stream, id_no, i, j, network_graph[i][j], CONF.NETWORK_LANE_CAPACITY, CONF.NETWORK_FREE_SPEED, CONF.NETWORK_ROAD_LANE_COUNT, CONF.NETWORK_MODE_STR)
                 id_no += 1
     file_stream.write(LINK_TAG[1]+'\n')
 
