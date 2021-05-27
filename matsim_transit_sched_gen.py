@@ -1,6 +1,8 @@
 import sys
 import datetime
 
+import sim_conf as CONF
+
 NETWORK_NAME="halifax evacuation"
 
 ROOT_TAG=[
@@ -33,7 +35,7 @@ ROUTE_PROFILE_TAG=[
 ]
 
 ROUTE_PROFILE_DESC_TAG=[
-"<stop refId=\"{0}\" departureOffset=\"{1}\" arrivalOffset=\"{2}\" awaitDeparture=\"true\"/>"
+"<stop refId=\"{0}\" arrivalOffset=\"{1}\" departureOffset=\"{2}\" awaitDeparture=\"true\"/>"
 ]
 
 ROUTE_TAG=[
@@ -53,13 +55,6 @@ DEPERTURE_TAG=[
 DEPERTURE_DESC_TAG=[
 "<departure id=\"{0}\" departureTime=\"{1}\" vehicleRefId=\"{2}\"/>"
 ]
-
-VEHICLE_ID_FORMAT = "bus_{0}"
-TOTAL_BUS = 300
-TRANSIT_VEHICLE_TYPE_PROP_DICT = \
-{
-    "bus": {"count": TOTAL_BUS, "seat": 40, "standing": 10, "length": 8}
-}
 
 
 node_count = 0
@@ -89,6 +84,7 @@ def write_stop_nodes(file_stream):
         write_stop_desc(file_stream, id_no)
     file_stream.write(TRANSIT_STOP_TAG[1]+"\n")
 
+
 def write_stop_desc(file_stream, stop_id):
     file_stream.write(TRANSIT_STOP_DESC_TAG[0].format(
         stop_id_dict[stop_id]["id"], 
@@ -106,13 +102,28 @@ def write_transit_lines(file_stream, id_no):
     write_depertures(file_stream, id_no)
     file_stream.write(TRANSIT_LINE_TAG[1] + "\n")
 
+
 def write_route_profile(file_stream, id_no):
+    # arrival offset means at which offset after starting transit will arrive
+    arrival_offset = "00:00:00"
+    # deperture offset means at which offset after starting transit will leave
+    deperture_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
+                             datetime.timedelta(minutes=CONF.TIME_WAITING_MIN)).strftime("%H:%M:%S")
+
     file_stream.write(ROUTE_PROFILE_TAG[0]+"\n")
     for i in range(1, len(route_list[id_no])):
         possible_stop_id = (route_list[id_no][i - 1], route_list[id_no][i])
         if possible_stop_id in stop_id_dict:
-            file_stream.write(ROUTE_PROFILE_DESC_TAG[0].format(stop_id_dict[possible_stop_id]["id"], "00:00:00", "00:00:00")+'\n')
+            file_stream.write(ROUTE_PROFILE_DESC_TAG[0].format(stop_id_dict[possible_stop_id]["id"], arrival_offset, deperture_offset)+'\n')
+            # arrival offset means at which offset after starting transit will arrive
+            arrival_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
+                                     datetime.timedelta(minutes=CONF.TIME_WAITING_MIN + CONF.TIME_BETWEEN_STOP_MINUTE)).strftime("%H:%M:%S")
+            # deperture offset means at which offset after starting transit will leave
+            deperture_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
+                                     datetime.timedelta(minutes=CONF.TIME_BETWEEN_STOP_MINUTE + CONF.TIME_WAITING_MIN)).strftime("%H:%M:%S")
+
     file_stream.write(ROUTE_PROFILE_TAG[1]+"\n")
+
 
 def write_route(file_stream, id_no):
     file_stream.write(ROUTE_TAG[0]+"\n")
@@ -128,16 +139,26 @@ def write_route(file_stream, id_no):
     #file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(node, route_list[idx - 1])])+'\n')
     file_stream.write(ROUTE_TAG[1]+"\n")
 
+
 def write_depertures(file_stream, id_no):
     global allocated_upto_bus_id, allocated_upto_deperture_id
+
+    # time for first transit to start
+    transit_deperture_time = CONF.TIME_TRANSIT_START
+
     file_stream.write(DEPERTURE_TAG[0]+"\n")
     for i in range(len(route_list[id_no])):
         file_stream.write(DEPERTURE_DESC_TAG[0].format(
-            allocated_upto_deperture_id, "00:00:00", 
-            VEHICLE_ID_FORMAT.format(allocated_upto_bus_id))+'\n')
+            allocated_upto_deperture_id, transit_deperture_time, 
+            CONF.VEHICLE_ID_FORMAT.format(allocated_upto_bus_id))+'\n')
         allocated_upto_bus_id += 1
         allocated_upto_deperture_id += 1
+        # for next deperture time
+        transit_deperture_time = (datetime.datetime.strptime(transit_deperture_time, "%H:%M:%S") + \
+                             datetime.timedelta(minutes=CONF.TIME_BETWEEN_NEW_TRANSIT_RELEASE_MINUTE)).strftime("%H:%M:%S")
+
     file_stream.write(DEPERTURE_TAG[1]+"\n")
+
 
 def parse_network_file(network_file_path):
     with open(network_file_path) as net_file:
@@ -156,6 +177,7 @@ def parse_network_file(network_file_path):
 
         assert len(network_graph)==node_count
 
+
 def create_link_id_dict():
     id_no = 0
     for i in range(len(network_graph)):
@@ -173,7 +195,8 @@ def create_pickuppoint_list(pickup_point_file_path):
         
         for idx, line in enumerate(lines):
             pickuppoint_list.append(int(line.rsplit()[0]))
- 
+
+
 def parse_route_file(route_file_path):
     with open(route_file_path) as route_file:
         lines = route_file.readlines()
@@ -196,13 +219,14 @@ def parse_route_file(route_file_path):
                         stop_id_dict[stop_node_id] = { "id": str(route_list[-1][-2]) + "_" + str(route_list[-1][-1]), "x": stop_node_id[0]*10, "y": (stop_node_id[0]//20 + 1)*100}
                         stop_id_dict[stop_node_id]["linkRefId"] = link_id_dict[(route_list[-1][-2], route_list[-1][-1])]
 
-            route_bus_count_list.append(int(sat_demand*total_demand/total_demand))
+            route_bus_count_list.append(int(sat_demand*CONF.TOTAL_BUS/total_demand))
             # there will be at least one bus
             if route_bus_count_list[-1] == 0:
                 route_bus_count_list[-1] = 1
 
-        if sum(route_bus_count_list) < TOTAL_BUS:
-            route_bus_count_list[-1] += TOTAL_BUS - sum(route_bus_count_list)
+        if sum(route_bus_count_list) < CONF.TOTAL_BUS:
+            route_bus_count_list[-1] += CONF.TOTAL_BUS - sum(route_bus_count_list)
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 5:
