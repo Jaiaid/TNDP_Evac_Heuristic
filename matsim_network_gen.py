@@ -2,7 +2,12 @@ import sys
 
 NETWORK_NAME="halifax evacuation"
 
-NETWORK_TAG=["<network name=\"{0}\">", "</network>"]
+NETWORK_TAG=[
+"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n\
+<!DOCTYPE network SYSTEM \"http://www.matsim.org/files/dtd/network_v1.dtd\">\n\
+<network name=\"{0}\">", 
+"</network>"
+]
 NODE_TAG=["<nodes>", "</nodes>"]
 NODE_DESCRIPTION_TAG=["<node id=\"{0}\" x=\"{1}\" y=\"{2}\"/>"]
 LINK_TAG=["<links>","</links>"]
