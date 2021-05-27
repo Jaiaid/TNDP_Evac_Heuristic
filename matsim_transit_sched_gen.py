@@ -64,6 +64,7 @@ TRANSIT_VEHICLE_TYPE_PROP_DICT = \
 
 node_count = 0
 network_graph = []
+pickuppoint_list = []
 stop_id_dict = {}
 link_id_dict = {}
 route_bus_count_list = []
@@ -107,9 +108,10 @@ def write_transit_lines(file_stream, id_no):
 
 def write_route_profile(file_stream, id_no):
     file_stream.write(ROUTE_PROFILE_TAG[0]+"\n")
-    for node in route_list[id_no]:
-        if node in stop_id_dict:
-            file_stream.write(ROUTE_PROFILE_DESC_TAG[0].format(stop_id_dict[node]["id"], "00:00:00", "00:00:00")+'\n')
+    for i in range(1, len(route_list[id_no])):
+        possible_stop_id = (route_list[id_no][i - 1], route_list[id_no][i])
+        if possible_stop_id in stop_id_dict:
+            file_stream.write(ROUTE_PROFILE_DESC_TAG[0].format(stop_id_dict[possible_stop_id]["id"], "00:00:00", "00:00:00")+'\n')
     file_stream.write(ROUTE_PROFILE_TAG[1]+"\n")
 
 def write_route(file_stream, id_no):
@@ -165,14 +167,13 @@ def create_link_id_dict():
                 id_no += 1
 
 
-def create_stop_id_dict(pickup_point_file_path):
+def create_pickuppoint_list(pickup_point_file_path):
     with open(pickup_point_file_path) as net_file:
         lines = net_file.readlines()
         
         for idx, line in enumerate(lines):
-            stop_node_id = int(line.rsplit()[0])
-            stop_id_dict[stop_node_id] = { "id": str(stop_node_id) + "_" + str(idx), "x": stop_node_id*10, "y": (stop_node_id//20)*100}
-
+            pickuppoint_list.append(int(line.rsplit()[0]))
+ 
 def parse_route_file(route_file_path):
     with open(route_file_path) as route_file:
         lines = route_file.readlines()
@@ -186,12 +187,14 @@ def parse_route_file(route_file_path):
             route_list.append([])
             for route_node_str in route_nodes_str:
                 route_list[-1].append(int(route_node_str))
+
                 # add linkRefId to stop_id_dict
                 if len(route_list[-1]) > 1:
                     # if it is stop id at all
-                    if route_list[-1][-2] in stop_id_dict:
-                        if "linkRefId" not in stop_id_dict[route_list[-1][-2]]:
-                            stop_id_dict[route_list[-1][-2]]["linkRefId"] = link_id_dict[(route_list[-1][-2], route_list[-1][-1])]
+                    if route_list[-1][-2] in pickuppoint_list:
+                        stop_node_id = (route_list[-1][-2], route_list[-1][-1])
+                        stop_id_dict[stop_node_id] = { "id": str(route_list[-1][-2]) + "_" + str(route_list[-1][-1]), "x": stop_node_id[0]*10, "y": (stop_node_id[0]//20 + 1)*100}
+                        stop_id_dict[stop_node_id]["linkRefId"] = link_id_dict[(route_list[-1][-2], route_list[-1][-1])]
 
             route_bus_count_list.append(int(sat_demand*total_demand/total_demand))
             # there will be at least one bus
@@ -208,7 +211,7 @@ if __name__ == "__main__":
 
     parse_network_file(sys.argv[1])    
     create_link_id_dict()
-    create_stop_id_dict(sys.argv[2])
+    create_pickuppoint_list(sys.argv[2])
     parse_route_file(sys.argv[3])
     create_schedule_file(sys.argv[4])
 
