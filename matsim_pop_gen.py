@@ -2,7 +2,12 @@ import sys
 
 NETWORK_NAME="halifax evacuation"
 
-POP_TAG=["<population>", "</population>"]
+POP_TAG=[
+"<?xml version=\"1.0\" ?>\n\
+<!DOCTYPE plans SYSTEM \"http://www.matsim.org/files/dtd/plans_v4.dtd\">\n\
+<plans>", 
+"</plans>"
+]
 AGENT_TAG=["<person id=\"{0}\">", "</person>"]
 AGENT_PLAN_TAG=["<plan>", "</plan>"]
 AGENT_ACT_DESC_TAG=["<act type=\"{0}\" x=\"{1}\" y=\"{2}\" />"]
@@ -10,8 +15,15 @@ AGENT_LEG_DESC_TAG=["<leg mode=\"{0}\" />"]
 
 TYPE_STR1="home"
 TYPE_STR2="shelter"
+TYPE_STR3="pt_interaction"
 
-LEG_MODE_STR="pt" 
+LEG_MODE_PT_STR="pt"
+LEG_MODE_WALK_STR="transit_walk"
+
+pickuppoint_list = []
+nearest_stop_dict = {}
+node_coordinate_dict = {}
+
 
 def create_pop_file(demand_graph, file_name):
     with open(file_name, "w") as fout:
@@ -27,17 +39,18 @@ def write_persons_tag(file_stream, demand_graph):
             if demand_graph[i][j] > 0:
                 person_count = int(demand_graph[i][j])
 
-                x_src = i*10
-                y_src = (i//20) * 100
-                x_dest = j*10
-                y_dest = (j//20) * 100
-
                 for k in range(person_count):
                     file_stream.write(AGENT_TAG[0].format(id_no)+'\n')
                     file_stream.write(AGENT_PLAN_TAG[0]+'\n')
-                    write_act_desc(file_stream, TYPE_STR1, x_src, y_src)
-                    write_leg_desc(file_stream, LEG_MODE_STR)
-                    write_act_desc(file_stream, TYPE_STR2, x_dest, y_dest)
+                    write_act_desc(file_stream, TYPE_STR1, node_coordinate_dict[i][0], node_coordinate_dict[i][1])
+                    #write_leg_desc(file_stream, LEG_MODE_WALK_STR)
+                    write_act_desc(file_stream, TYPE_STR3, 
+                        node_coordinate_dict[nearest_stop_dict[i]][0], 
+                        node_coordinate_dict[nearest_stop_dict[i]][1])
+                    write_leg_desc(file_stream, LEG_MODE_PT_STR)
+                    write_act_desc(file_stream, TYPE_STR3, node_coordinate_dict[j][0], node_coordinate_dict[j][1])
+                    write_leg_desc(file_stream, LEG_MODE_WALK_STR)
+                    write_act_desc(file_stream, TYPE_STR2, node_coordinate_dict[j][0], node_coordinate_dict[j][1])
                     file_stream.write(AGENT_PLAN_TAG[1]+'\n')
                     file_stream.write(AGENT_TAG[1]+'\n')
                     id_no += 1
@@ -51,9 +64,39 @@ def write_leg_desc(file_stream, mode_str):
     file_stream.write(AGENT_LEG_DESC_TAG[0].format(mode_str)+'\n')
 
 
+def create_pickuppoint_list(pickup_point_file_path):
+    with open(pickup_point_file_path) as net_file:
+        lines = net_file.readlines()
+        
+        for idx, line in enumerate(lines):
+            pickuppoint_list.append(int(line.rsplit()[0]))
+
+
+def calc_euclid_dist(coord1, coord2):
+    return ((coord1[0]-coord2[0])**2 + (coord1[1]-coord2[1])**2)**0.5 
+
+
+def create_nearest_stop_dict(node_count):
+    for i in range(node_count):
+        x = i*10
+        y = (i//20) * 100
+        node_coordinate_dict[i] = (x, y)
+
+    for i in range(node_count):
+        mindist = float("inf")
+        nearest_stop = None
+        for stop_id in pickuppoint_list:
+            dist = calc_euclid_dist(node_coordinate_dict[i], node_coordinate_dict[stop_id])
+            if dist < mindist:
+                nearest_stop = stop_id
+                mindist = dist
+        assert nearest_stop is not None
+        nearest_stop_dict[i] = nearest_stop 
+
+
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: python3 main.py demand_file out_path")
+    if len(sys.argv) < 4:
+        print("Usage: python3 main.py demand_file pickuppoint_file out_path")
         exit(0)
 
     node_count = 0
@@ -74,6 +117,7 @@ if __name__ == "__main__":
 
         assert len(demand_graph)==node_count
 
-    
-    create_pop_file(demand_graph, sys.argv[2])
+    create_pickuppoint_list(sys.argv[2])
+    create_nearest_stop_dict(node_count)
+    create_pop_file(demand_graph, sys.argv[3])
 
