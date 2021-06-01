@@ -43,7 +43,7 @@ def write_persons_tag(file_stream, demand_graph):
                     file_stream.write(AGENT_TAG[0].format(id_no)+'\n')
                     file_stream.write(AGENT_PLAN_TAG[0]+'\n')
                     write_act_desc(file_stream, TYPE_STR1, node_coordinate_dict[i][0], node_coordinate_dict[i][1])
-                    #write_leg_desc(file_stream, LEG_MODE_WALK_STR)
+                    write_leg_desc(file_stream, LEG_MODE_WALK_STR)
                     write_act_desc(file_stream, TYPE_STR3, 
                         node_coordinate_dict[nearest_stop_dict[i]][0], 
                         node_coordinate_dict[nearest_stop_dict[i]][1])
