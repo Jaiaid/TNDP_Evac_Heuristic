@@ -3,7 +3,7 @@ import json
 import networkx as nx
 import numpy as np
 from pathlib import Path
-
+import os
 
 
 
@@ -150,6 +150,13 @@ def get_routes(graph, demand_matrix, weight, min_hop_count, max_hop_count):
         gen_route_demand_tuple_list.append((route, satisfied_demand))
         yield route
 
+def get_return_routes(graph, route_src_dest_pair_list):
+    for src_dest_pair in route_src_dest_pair_list:
+        src = src_dest_pair[1]
+        dest = src_dest_pair[0]
+        route = nx.algorithms.shortest_paths.weighted.dijkstra_path(graph, src, dest, weight=lambda u,v,d: d['weight'])
+        yield route
+
 
 def save_graph_as_json(distance_matrix, file_path):
     distance_matrix1 = distance_matrix.copy()
@@ -172,6 +179,7 @@ if __name__ == "__main__":
         with open(dist_file) as f:
             data = json.load(f)
         graph = nx.readwrite.json_graph.node_link_graph(data)
+        graph_return_route_calc = graph.copy()
         distance_matrix = nx.convert_matrix.to_numpy_matrix(graph)
     else:
         distance_matrix = read_distance_matrix(dist_file)
@@ -204,10 +212,20 @@ if __name__ == "__main__":
         except AssertionError as e:
             pass
 
+    route_src_dest_pair_list_for_return_routes = []
     for tup in sorted(gen_route_demand_tuple_list, key=lambda tup: tup[1], reverse=True):
         print(tup[1])
+        route_src_dest_pair_list_for_return_routes.append((tup[0][0], tup[0][-1]))
         for idx, node in enumerate(tup[0]):
             if idx > 0:
                print(' ', end='')
             print(node, end='')	
         print('')
+
+    return_routes = get_return_routes(graph, route_src_dest_pair_list_for_return_routes)
+    with open("return_route.txt", "w") as return_route_output_file:
+        for route in return_routes:
+            for node_id in route:
+                return_route_output_file.write(str(node_id) + ' ')
+            return_route_output_file.write(os.linesep)
+
