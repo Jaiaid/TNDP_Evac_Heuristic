@@ -26,11 +26,9 @@ def create_network_file(network_graph, file_name):
 
 def write_nodes_tag(file_stream, network_graph):
     file_stream.write(NODE_TAG[0]+'\n')
-    y = 0
     for i in range(len(network_graph)):
         x = i*10
-        if i%20 == 0:
-            y += 100
+        y = (i//20) * 100
 
         write_node_desc(file_stream, i, x, y)
     file_stream.write(NODE_TAG[1]+'\n')
