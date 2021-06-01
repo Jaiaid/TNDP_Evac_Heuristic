@@ -64,6 +64,7 @@ stop_id_dict = {}
 link_id_dict = {}
 route_bus_count_list = []
 route_list = []
+return_route_list = []
 allocated_upto_bus_id = 0
 allocated_upto_deperture_id = 0
 
@@ -122,6 +123,16 @@ def write_route_profile(file_stream, id_no):
             deperture_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
                                      datetime.timedelta(minutes=CONF.TIME_BETWEEN_STOP_MINUTE + CONF.TIME_WAITING_MIN)).strftime("%H:%M:%S")
 
+    # arrival offset means at which offset after starting transit will arrive
+    arrival_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
+                             datetime.timedelta(minutes=CONF.TIME_WAITING_MIN + CONF.TIME_BETWEEN_STOP_MINUTE)).strftime("%H:%M:%S")
+    # deperture offset means at which offset after starting transit will leave
+    deperture_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
+                             datetime.timedelta(minutes=CONF.TIME_BETWEEN_STOP_MINUTE + CONF.TIME_WAITING_MIN)).strftime("%H:%M:%S")
+    # shelter stop id
+    # for normal stop (stop id, next node)
+    # for shelter stop (stop id, return route 2nd node)
+    file_stream.write(ROUTE_PROFILE_DESC_TAG[0].format(stop_id_dict[(route_list[id_no][-1], return_route_list[id_no][1])]["id"], arrival_offset, deperture_offset)+'\n')
     file_stream.write(ROUTE_PROFILE_TAG[1]+"\n")
 
 
@@ -132,11 +143,10 @@ def write_route(file_stream, id_no):
         if idx > 0:
             file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(route_list[id_no][idx - 1], node)])+'\n')
     # return route
-    #for idx in range(len(route_list[id_no])-1, 0, -1):
-    #    if idx > 0:
-    #        file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(route_list[id_no][idx], route_list[id_no][idx - 1])])+'\n')
-
-    #file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(node, route_list[idx - 1])])+'\n')
+    for idx in range(1, len(return_route_list[id_no])):
+        file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(return_route_list[id_no][idx-1], return_route_list[id_no][idx])])+'\n')
+    # start link again    
+    file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(route_list[id_no][0], route_list[id_no][1])])+'\n')
     file_stream.write(ROUTE_TAG[1]+"\n")
 
 
@@ -147,7 +157,7 @@ def write_depertures(file_stream, id_no):
     transit_deperture_time = CONF.TIME_TRANSIT_START
 
     file_stream.write(DEPERTURE_TAG[0]+"\n")
-    for i in range(len(route_list[id_no])):
+    for i in range(route_bus_count_list[id_no]):
         file_stream.write(DEPERTURE_DESC_TAG[0].format(
             allocated_upto_deperture_id, transit_deperture_time, 
             CONF.VEHICLE_ID_FORMAT.format(allocated_upto_bus_id))+'\n')
@@ -184,8 +194,6 @@ def create_link_id_dict():
         for j in range(len(network_graph[i])):
             if network_graph[i][j] > 0:
                 link_id_dict[(i,j)] = id_no
-                if i==98 and j==104:
-                    print(link_id_dict[(98,104)])
                 id_no += 1
 
 
@@ -197,11 +205,21 @@ def create_pickuppoint_list(pickup_point_file_path):
             pickuppoint_list.append(int(line.rsplit()[0]))
 
 
-def parse_route_file(route_file_path):
+def parse_route_file(route_file_path, return_route_file_path):
+    with open(return_route_file_path) as return_route_file:
+        for line in return_route_file.readlines():
+            route_nodes_str = line.rsplit()
+            return_route_list.append([])
+            for route_node_str in route_nodes_str:
+                return_route_list[-1].append(int(route_node_str))
+
+    # this is used to add shelter stop linkrefid, which is got by (shelter id, corresponding return route 2nd node)
+    # return_route_list should be in corresponding sequence as route
+    parsed_route_no = 0
     with open(route_file_path) as route_file:
         lines = route_file.readlines()
-        total_demand=float(lines[0])
-        total_route=int(lines[1])
+        total_demand = float(lines[0])
+        total_route = int(lines[1])
 
         for idx in range(2, len(lines), 2):
             sat_demand=float(lines[idx].rsplit()[0])
@@ -216,27 +234,35 @@ def parse_route_file(route_file_path):
                     # if it is stop id at all
                     if route_list[-1][-2] in pickuppoint_list:
                         stop_node_id = (route_list[-1][-2], route_list[-1][-1])
-                        stop_id_dict[stop_node_id] = { "id": str(route_list[-1][-2]) + "_" + str(route_list[-1][-1]), "x": stop_node_id[0]*10, "y": (stop_node_id[0]//20 + 1)*100}
+                        stop_id_dict[stop_node_id] = { "id": str(route_list[-1][-2]) + "_" + str(route_list[-1][-1]), "x": stop_node_id[0]*10, "y": (stop_node_id[0]//20)*100}
                         stop_id_dict[stop_node_id]["linkRefId"] = link_id_dict[(route_list[-1][-2], route_list[-1][-1])]
+
+            # create a stop at shelter
+            assert route_list[-1][-1] == return_route_list[parsed_route_no][0]
+            shelter_stop_id = (route_list[-1][-1], return_route_list[parsed_route_no][1])
+            stop_id_dict[shelter_stop_id] = { "id": str(route_list[-1][-1]) + "_" + str(return_route_list[parsed_route_no][1]), "x": shelter_stop_id[0]*10, "y": (shelter_stop_id[0]//20)*100}
+            stop_id_dict[shelter_stop_id]["linkRefId"] = link_id_dict[(route_list[-1][-1], return_route_list[parsed_route_no][1])]
 
             route_bus_count_list.append(int(sat_demand*CONF.TOTAL_BUS/total_demand))
             # there will be at least one bus
             if route_bus_count_list[-1] == 0:
                 route_bus_count_list[-1] = 1
 
+            parsed_route_no += 1
+
         if sum(route_bus_count_list) < CONF.TOTAL_BUS:
             route_bus_count_list[-1] += CONF.TOTAL_BUS - sum(route_bus_count_list)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 5:
-        print("Usage: python3 main.py distance_file pickup_point_file route_file out_path")
+    if len(sys.argv) < 6:
+        print("Usage: python3 main.py distance_file pickup_point_file route_file return_route_file out_path")
         exit(0)
 
-    parse_network_file(sys.argv[1])    
+    parse_network_file(sys.argv[1])
     create_link_id_dict()
     create_pickuppoint_list(sys.argv[2])
-    parse_route_file(sys.argv[3])
-    create_schedule_file(sys.argv[4])
+    parse_route_file(sys.argv[3], sys.argv[4])
+    create_schedule_file(sys.argv[5])
 
 
