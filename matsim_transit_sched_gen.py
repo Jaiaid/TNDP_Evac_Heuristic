@@ -35,7 +35,7 @@ ROUTE_PROFILE_TAG=[
 ]
 
 ROUTE_PROFILE_DESC_TAG=[
-"<stop refId=\"{0}\" arrivalOffset=\"{1}\" departureOffset=\"{2}\" awaitDeparture=\"true\"/>"
+"<stop refId=\"{0}\" arrivalOffset=\"{1}\" departureOffset=\"{2}\" awaitDeparture=\"false\"/>"
 ]
 
 ROUTE_TAG=[
@@ -92,12 +92,12 @@ def write_stop_desc(file_stream, stop_id):
         stop_id_dict[stop_id]["x"], 
         stop_id_dict[stop_id]["y"], 
         stop_id_dict[stop_id]["linkRefId"],
-        "true"
+        "false"
     )+'\n')
 
 
 def write_transit_lines(file_stream, id_no):
-    file_stream.write(TRANSIT_LINE_TAG[0].format(id_no, id_no, "pt")+"\n")
+    file_stream.write(TRANSIT_LINE_TAG[0].format(id_no, id_no, CONF.TRANSIT_MODE)+"\n")
     write_route_profile(file_stream, id_no)
     write_route(file_stream, id_no)
     write_depertures(file_stream, id_no)

@@ -18,6 +18,8 @@ TRANSIT_DESC_TAG=[
 <standingRoom persons=\"{3}\"/>\n\
 </capacity>\n\
 <length meter=\"{4}\"/>\n\
+<doorOperation mode=\"serial\"/>\n\
+<passengerCarEquivalents pce=\"{5}\"/>\n\
 </vehicleType>"
 ]
 
@@ -28,18 +30,18 @@ def create_vehicle_file(file_name):
     with open(file_name, "w") as fout:
         fout.write(ROOT_TAG[0]+"\n")
 
-        for idx, vehicle_name in enumerate(CONF.TRANSIT_VEHICLE_TYPE_PROP_DICT):
+        for vehicle_name in CONF.TRANSIT_VEHICLE_TYPE_PROP_DICT:
             prop = CONF.TRANSIT_VEHICLE_TYPE_PROP_DICT[vehicle_name]
-            write_vehicle_desc(fout, idx, vehicle_name, prop["seat"], prop["standing"], prop["length"])
+            write_vehicle_desc(fout, prop["id"], vehicle_name, prop["seat"], prop["standing"], prop["length"], prop["pce"])
 
             for num in range(prop["count"]):
-                write_pervehicle_entry(fout, vehicle_name+"_{0}".format(num), idx)
+                write_pervehicle_entry(fout, vehicle_name+"_{0}".format(num), prop["id"])
 
         fout.write(ROOT_TAG[1]+"\n")
 
 
-def write_vehicle_desc(file_stream, type_id, name, seat, standing_cap, length):
-    file_stream.write(TRANSIT_DESC_TAG[0].format(type_id, name, seat, standing_cap, length)+'\n')
+def write_vehicle_desc(file_stream, type_id, name, seat, standing_cap, length, pce):
+    file_stream.write(TRANSIT_DESC_TAG[0].format(type_id, name, seat, standing_cap, length, pce)+'\n')
 
 
 def write_pervehicle_entry(file_stream, id_no, type_no):
