@@ -11,6 +11,7 @@ POP_TAG=[
 AGENT_TAG=["<person id=\"{0}\">", "</person>"]
 AGENT_PLAN_TAG=["<plan selected=\"yes\">", "</plan>"]
 AGENT_ACT_DESC_TAG=["<act type=\"{0}\" link=\"{1}\" x=\"{2}\" y=\"{3}\"  end_time=\"{4}\" />"]
+AGENT_ACT_DESC_TAG_NO_END_TIME=["<act type=\"{0}\" link=\"{1}\" x=\"{2}\" y=\"{3}\" />"]
 AGENT_LEG_DESC_TAG=["<leg mode=\"{0}\"/>"]
 
 TYPE_STR1="home"
@@ -65,7 +66,7 @@ def write_persons_tag(file_stream):
                     write_leg_desc(file_stream, LEG_MODE_PT_STR)
                     #write_act_desc(file_stream, TYPE_STR3, destination_link_id, node_coordinate_dict[route[-1]][0], node_coordinate_dict[route[-1]][1])
                     #write_leg_desc(file_stream, LEG_MODE_WALK_STR)
-                    write_act_desc(file_stream, TYPE_STR2, destination_link_id, node_coordinate_dict[route[-1]][0], node_coordinate_dict[route[-1]][1], "48:00:00")
+                    write_act_desc(file_stream, TYPE_STR2, destination_link_id, node_coordinate_dict[route[-1]][0], node_coordinate_dict[route[-1]][1], None)
                     file_stream.write(AGENT_PLAN_TAG[1]+'\n')
                     file_stream.write(AGENT_TAG[1]+'\n')
                     id_no += 1
@@ -74,7 +75,10 @@ def write_persons_tag(file_stream):
 
 
 def write_act_desc(file_stream, type_str, link_id, x, y, end_time):
-    file_stream.write(AGENT_ACT_DESC_TAG[0].format(type_str, link_id, x, y, end_time)+'\n')
+    if end_time is None:
+        file_stream.write(AGENT_ACT_DESC_TAG_NO_END_TIME[0].format(type_str, link_id, x, y)+'\n')
+    else:
+        file_stream.write(AGENT_ACT_DESC_TAG[0].format(type_str, link_id, x, y, end_time)+'\n')
 
 
 def write_leg_desc(file_stream, mode_str):
