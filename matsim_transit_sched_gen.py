@@ -35,7 +35,7 @@ ROUTE_PROFILE_TAG=[
 ]
 
 ROUTE_PROFILE_DESC_TAG=[
-"<stop refId=\"{0}\" arrivalOffset=\"{1}\" departureOffset=\"{2}\" awaitDeparture=\"false\"/>"
+"<stop refId=\"{0}\" arrivalOffset=\"{1}\" departureOffset=\"{2}\" awaitDeparture=\"true\"/>"
 ]
 
 ROUTE_TAG=[
@@ -62,6 +62,7 @@ network_graph = []
 pickuppoint_list = []
 stop_id_dict = {}
 link_id_dict = {}
+transit_id_round_trip_count_dict = {}
 route_bus_count_list = []
 route_list = []
 return_route_list = []
@@ -92,7 +93,7 @@ def write_stop_desc(file_stream, stop_id):
         stop_id_dict[stop_id]["x"], 
         stop_id_dict[stop_id]["y"], 
         stop_id_dict[stop_id]["linkRefId"],
-        "false"
+        "true"
     )+'\n')
 
 
@@ -112,39 +113,49 @@ def write_route_profile(file_stream, id_no):
                              datetime.timedelta(minutes=CONF.TIME_WAITING_MIN)).strftime("%H:%M:%S")
 
     file_stream.write(ROUTE_PROFILE_TAG[0]+"\n")
-    for i in range(1, len(route_list[id_no])):
-        possible_stop_id = (route_list[id_no][i - 1], route_list[id_no][i])
-        if possible_stop_id in stop_id_dict:
-            file_stream.write(ROUTE_PROFILE_DESC_TAG[0].format(stop_id_dict[possible_stop_id]["id"], arrival_offset, deperture_offset)+'\n')
-            # arrival offset means at which offset after starting transit will arrive
-            arrival_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
-                                     datetime.timedelta(minutes=CONF.TIME_WAITING_MIN + CONF.TIME_BETWEEN_STOP_MINUTE)).strftime("%H:%M:%S")
-            # deperture offset means at which offset after starting transit will leave
-            deperture_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
-                                     datetime.timedelta(minutes=CONF.TIME_BETWEEN_STOP_MINUTE + CONF.TIME_WAITING_MIN)).strftime("%H:%M:%S")
 
-    # arrival offset means at which offset after starting transit will arrive
-    arrival_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
-                             datetime.timedelta(minutes=CONF.TIME_WAITING_MIN + CONF.TIME_BETWEEN_STOP_MINUTE)).strftime("%H:%M:%S")
-    # deperture offset means at which offset after starting transit will leave
-    deperture_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
-                             datetime.timedelta(minutes=CONF.TIME_BETWEEN_STOP_MINUTE + CONF.TIME_WAITING_MIN)).strftime("%H:%M:%S")
-    # shelter stop id
-    # for normal stop (stop id, next node)
-    # for shelter stop (stop id, return route 2nd node)
-    file_stream.write(ROUTE_PROFILE_DESC_TAG[0].format(stop_id_dict[(route_list[id_no][-1], return_route_list[id_no][1])]["id"], arrival_offset, deperture_offset)+'\n')
+    round_trip_count = 0
+    # keep running the transit in circular as for CONF.TRANSIT_RUN_TIME_HOUR_LENGTH
+    while arrival_offset < CONF.TRANSIT_RUN_TIME_HOUR_LENGTH:
+        for i in range(1, len(route_list[id_no])):
+            possible_stop_id = (route_list[id_no][i - 1], route_list[id_no][i])
+            if possible_stop_id in stop_id_dict:
+                file_stream.write(ROUTE_PROFILE_DESC_TAG[0].format(stop_id_dict[possible_stop_id]["id"], arrival_offset, deperture_offset)+'\n')
+                # arrival offset means at which offset after starting transit will arrive
+                arrival_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
+                                         datetime.timedelta(minutes=CONF.TIME_WAITING_MIN + CONF.TIME_BETWEEN_STOP_MINUTE)).strftime("%H:%M:%S")
+                # deperture offset means at which offset after starting transit will leave
+                deperture_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
+                                         datetime.timedelta(minutes=CONF.TIME_BETWEEN_STOP_MINUTE + CONF.TIME_WAITING_MIN)).strftime("%H:%M:%S")
+
+        # arrival offset means at which offset after starting transit will arrive
+        arrival_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
+                                 datetime.timedelta(minutes=CONF.TIME_WAITING_MIN + CONF.TIME_BETWEEN_STOP_MINUTE)).strftime("%H:%M:%S")
+        # deperture offset means at which offset after starting transit will leave
+        deperture_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
+                                 datetime.timedelta(minutes=CONF.TIME_BETWEEN_STOP_MINUTE + CONF.TIME_WAITING_MIN)).strftime("%H:%M:%S")
+        # shelter stop id
+        # for normal stop (stop id, next node)
+        # for shelter stop (stop id, return route 2nd node)
+        file_stream.write(ROUTE_PROFILE_DESC_TAG[0].format(stop_id_dict[(route_list[id_no][-1], return_route_list[id_no][1])]["id"], arrival_offset, deperture_offset)+'\n')
+        # one round trip completed
+        round_trip_count +=1
+
+    transit_id_round_trip_count_dict[id_no] = round_trip_count 
     file_stream.write(ROUTE_PROFILE_TAG[1]+"\n")
 
 
 def write_route(file_stream, id_no):
     file_stream.write(ROUTE_TAG[0]+"\n")
-    # go route    
-    for idx, node in enumerate(route_list[id_no]):
-        if idx > 0:
-            file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(route_list[id_no][idx - 1], node)])+'\n')
-    # return route
-    for idx in range(1, len(return_route_list[id_no])):
-        file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(return_route_list[id_no][idx-1], return_route_list[id_no][idx])])+'\n')
+    # have to repeat the link unless all round trip are done
+    for round_trip in range(transit_id_round_trip_count_dict[id_no]):
+        # go route
+        for idx, node in enumerate(route_list[id_no]):
+            if idx > 0:
+                file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(route_list[id_no][idx - 1], node)])+'\n')
+        # return route
+        for idx in range(1, len(return_route_list[id_no])):
+            file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(return_route_list[id_no][idx-1], return_route_list[id_no][idx])])+'\n')
     # start link again    
     file_stream.write(ROUTE_LINK_DESC_TAG[0].format(link_id_dict[(route_list[id_no][0], route_list[id_no][1])])+'\n')
     file_stream.write(ROUTE_TAG[1]+"\n")
