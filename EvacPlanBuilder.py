@@ -1,4 +1,8 @@
-
+from .NetworkRoute import NetworkRoute
+from .NetworkLink import NetworkLink
+from .NetworkNode import NetworkNode
+from .Vehicle import Vehicle
+from .Agent import Agent
 
 NETWORK_MODE_STR="car,bus"
 NETWORK_LANE_CAPACITY=50000 # in vehicle per hour
@@ -35,21 +39,10 @@ class EvacPlanBuilder:
     __link_max_speed_graph = None
     __link_lane_count_graph = None
 
-    __node_coordinate_dict = None
-    __link_id_dict = None
-    __stop_id_dict = None 
-    __nearest_stop_dict = None
-    
-    __route_list = None
-    __route_count = None
-    __return_route_list = None
-    __route_id_round_trip_count_dict = None
-    
-    __route_bus_count_list = None
-
-    __departure_dict = None
-    __route_deperture_id_list = None
-
+    __node_dict = None
+    __link_dict = None
+    __route_dict = None 
+    __agent_dict = None
 
     def __init__(self, link_cap=NETWORK_LANE_CAPACITY, lane_count=NETWORK_ROAD_LANE_COUNT, link_max_speed=NETWORK_MAX_LINK_SPEED, \
         early_arrival_waiting_at_stop_min=TIME_WAITING_MIN, travel_time_between_stop_floor_minute=TIME_BETWEEN_STOP_MINUTE, \
@@ -69,23 +62,25 @@ class EvacPlanBuilder:
         self.__transit_last_start_time_string = last_transit_start_time_string
         self.__round_trip_count = None
 
-
     def __get_link_cap(self, origin, dest):
         if self.__link_capacity_graph is None:
             return self.__network_link_cap
         return self.__link_capacity_graph[origin][dest]
-
 
     def __get_link_max_speed(self, origin, dest):
         if self.__link_max_speed_graph is None:
             return self.__network_max_link_speed
         return self.__link_max_speed_graph[origin][dest]
 
-
     def __get_link_lane_count(self, origin, dest):
         if self.__link_lane_count_graph is None:
             return self.__network_link_lane_count
         return self.__link_lane_count_graph[origin][dest]
+
+    def __get_node_coord(self, node_id):
+        if self.__node_coordinate_dict is None:
+            return node_id*10, (node_id//20)*100
+        return self.__node_dict[node_id]["coord"]
 
 
     def __parse_network_file(self, network_file_path):
@@ -111,6 +106,16 @@ class EvacPlanBuilder:
             assert len(self.__network_graph)==self.__node_count
         
         # populate link id dict
+        id_no = 0
+        for i in range(len(self.__network_graph)):
+            for j in range(len(self.__network_graph[i])):
+                if self.__network_graph[i][j] > 0:
+                    self.__link_id_dict[(i,j)]["id"] = id_no
+                    self.__link_id_dict[(i,j)]["cap"] = self.__get_link_cap(i, j)
+                    self.__link_id_dict[(i,j)]["speed"] = self.__get_link_max_speed(i, j)
+                    self.__link_id_dict[(i,j)]["lane_count"] = self.__get_link_lane_count(i, j)
+                    id_no += 1
+
         id_no = 0
         for i in range(len(self.__network_graph)):
             for j in range(len(self.__network_graph[i])):
@@ -158,10 +163,8 @@ class EvacPlanBuilder:
 
         fleet_size = sum([self.__transit_vehicle_type_prop_dict[key]["count"] for key in self.__transit_vehicle_type_prop_dict])
 
-        self.__route_list = []
-        self.__return_route_list = []
+        self.__route_dict = {}
         self.__stop_id_dict = {}
-        self.__route_bus_count_list = []
 
         with open(return_route_file_path) as return_route_file:
             for line in return_route_file.readlines():
@@ -240,10 +243,13 @@ class EvacPlanBuilder:
 
     def __create_depertures(self):
         self.__departure_id = {}
-        self.__route_deperture_id_list = []
+        self.__route_
 
         assert self.__route_list is not None
         assert self.__return_route_list is not None
+        assert self.__route_bus_count_list is not None
+
+        for route in
 
 
         
