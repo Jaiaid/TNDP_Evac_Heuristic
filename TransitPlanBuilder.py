@@ -1,6 +1,7 @@
 import math
 import datetime
 import os
+import copy
 
 from NetworkRoute import NetworkRoute, NetworkRouteProfileEntry
 from NetworkLink import NetworkLink
@@ -8,6 +9,7 @@ from NetworkNode import NetworkNode
 from Vehicle import Vehicle
 from Schedule import Schedule
 from Agent import Agent
+from MatsimInputWriter import MatsimInputWriter
 
 
 class TransitPlanBuilder:
@@ -28,12 +30,14 @@ class TransitPlanBuilder:
     __agent_dict = None
     __vehicle_list = None
 
-    def __init__(self, link_cap, lane_count, link_max_speed, network_mode_str):
+    def __init__(
+        self, link_cap: int, lane_count: int, link_max_speed: float, 
+        network_mode_str: str, transit_mode_str: str):
         self.__network_link_cap = link_cap
         self.__network_link_lane_count = lane_count
         self.__network_max_link_speed = link_max_speed
         self.__network_mode_str = network_mode_str
-
+        self.__transit_mode_str = transit_mode_str
 
     def __get_link_cap(self, origin_id: int, dest_id: int):
         if self.__link_capacity_graph is None:
@@ -136,7 +140,7 @@ class TransitPlanBuilder:
         with open(return_route_file_path) as return_route_file:
             route_id = 0
             for line in return_route_file.readlines():
-                self.__route_dict[route_id] = NetworkRoute(route_id)
+                self.__route_dict[route_id] = NetworkRoute(id=route_id, transit_mode=self.__transit_mode_str)
                 route_nodes_str = line.rsplit()
                 for i, route_node_str in enumerate(route_nodes_str):
                     if i > 0:
@@ -180,12 +184,14 @@ class TransitPlanBuilder:
             arrival_offset = "00:00:00"
             deperture_offset = (datetime.datetime.strptime(arrival_offset, "%H:%M:%S") + \
                                 datetime.timedelta(minutes=wait_minute)).strftime("%H:%M:%S")
+            # trip count should be greater than zero for sensible data
+            assert route.round_trip_count > 0
             for trip_count in range(route.round_trip_count):
                 for stopfacility in route_stops: 
                     route_stop_profiles.append(
                         NetworkRouteProfileEntry(
                             stopfacility=stopfacility, arrival_offset=arrival_offset, 
-                            deperture_offset=deperture_offset, wait_early_arrival=True
+                            deperture_offset=deperture_offset, wait_early_arrival="true"
                         )
                     )
                     arrival_offset = (datetime.datetime.strptime(deperture_offset, "%H:%M:%S") + \
@@ -201,7 +207,8 @@ class TransitPlanBuilder:
         for vehicle_type in vehicle_dict:
             for i in range(vehicle_dict[vehicle_type]["count"]):
                 self.__vehicle_list.append(
-                    Vehicle(id=vehicle_dict[vehicle_type]["id"]+"_{0}".format(i), 
+                    Vehicle(id=vehicle_dict[vehicle_type]["id"]+"_{0}".format(i),
+                        typename=vehicle_type,
                         seat=vehicle_dict[vehicle_type]["seat"],
                         standing=vehicle_dict[vehicle_type]["standing"],
                         length=vehicle_dict[vehicle_type]["length"],
@@ -246,6 +253,31 @@ class TransitPlanBuilder:
             route.set_depertures(deperture_list)
             allocated_upto_idx += allocated_vehicle_count
 
+    def __create_agents(self, home_left_time):
+        assert self.__route_dict is not None
+
+        self.__agent_dict = {}
+
+        id_no = 0
+        demand_graph = copy.deepcopy(self.__demand_graph)
+        for route_id in self.__route_dict:
+            route = self.__route_dict[route_id]
+            shelter_link = route.return_route_link_list[0]
+            for link in route.route_link_list:
+                if demand_graph[link.origin.id][shelter_link.origin.id] > 0:
+                    person_count = int(demand_graph[link.origin.id][shelter_link.origin.id])
+
+                    for i in range(person_count):
+                        self.__agent_dict[id_no] = \
+                            Agent(
+                                id=id_no, home_link=link, home_left_time=home_left_time, 
+                                shelter_link=shelter_link, route=route
+                            )
+                        id_no += 1
+                        
+                    # this person plans are written make it zero so overlapped nodes are not written multiple times
+                    demand_graph[link.origin.id][shelter_link.origin.id] = 0
+
     def create_plan(
             self, network_file_path: str, demand_file_path: str, pickuppoint_file_path: str, 
             route_file_path: str, return_route_file_path: str, vehicle_dict: dict, 
@@ -254,28 +286,26 @@ class TransitPlanBuilder:
         self.__parse_network_file(network_file_path=network_file_path)
         self.__parse_demand_file(demand_file_path=demand_file_path)
         self.__parse_route_files(route_file_path=route_file_path, return_route_file_path=return_route_file_path)
-        self.__create_route_stop_profile(max_roundtrip_minute=max_roundtrip_minute, wait_minute=wait_minute_at_stop)
+        self.__create_agents(home_left_time="07:45:00")
         self.__create_vehicles(vehicle_dict=vehicle_dict)
         self.__create_schedule(start_time=start_time, minute_between_start=minute_between_start)
-
-
-    def __write_plan_file(self, output_path):
-        return
-
-    def __write_network_file(self, output_path):
-        return
-
-    def __write_vehicle_file(self, output_path):
-        return
-
-    def __write_schedule_file(self, output_path):
-        return
+        self.__create_route_stop_profile(max_roundtrip_minute=max_roundtrip_minute, wait_minute=wait_minute_at_stop)
 
     def write_plan_matsim_format(self, output_dir_path):
         if not os.path.exists(output_dir_path):
             os.mkdir(output_dir_path)
 
-        self.__write_plan_file(os.path.join(output_dir_path, "population.xml"))
-        self.__write_network_file(os.path.join(output_dir_path, "network.xml"))
-        self.__write_vehicle_file(os.path.join(output_dir_path, "transit_vehicle.xml"))
-        self.__write_schedule_file(os.path.join(output_dir_path, "transit_schedule.xml"))
+        writer = MatsimInputWriter()
+        writer.write_plan_file(
+            os.path.join(output_dir_path, "population.xml"), agent_dict=self.__agent_dict
+        )
+        writer.write_network_file(
+            os.path.join(output_dir_path, "network.xml"), 
+            link_dict=self.__link_dict, node_dict=self.__node_dict
+        )
+        writer.write_vehicle_file(os.path.join(
+            output_dir_path, "transit_vehicle.xml"), vehicle_list=self.__vehicle_list
+        )
+        writer.write_schedule_file(
+            os.path.join(output_dir_path, "transit_schedule.xml"), route_dict=self.__route_dict
+        )

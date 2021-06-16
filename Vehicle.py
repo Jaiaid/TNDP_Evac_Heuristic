@@ -1,6 +1,7 @@
 class Vehicle:
-    def __init__(self, id: str, seat: int, standing: int, length: float, pce: float):
+    def __init__(self, id: str, typename: str, seat: int, standing: int, length: float, pce: float):
         self.id = id
+        self.typename = typename
         self.seat = seat
         self.standing = standing
         self.length = length

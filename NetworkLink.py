@@ -1,8 +1,10 @@
 from NetworkNode import NetworkNode
 
 class StopFacility:
-    def __init__(self, origin: NetworkNode, dest: NetworkNode, linkid: int, is_blocking: bool) -> None:
+    def __init__(self, origin: NetworkNode, dest: NetworkNode, linkid: int, is_blocking: str) -> None:
         self.id = str(origin.id) + "_" + str(dest.id)
+        self.x = origin.x
+        self.y = origin.y
         self.linkid = linkid
         self.is_blocking = is_blocking
 
@@ -23,10 +25,15 @@ class NetworkLink:
         
         self.stopfacility = None
         if self.is_stop:
-            self.stopfacility = StopFacility(self.origin, self.dest, self.id, True)
+            self.stopfacility = StopFacility(self.origin, self.dest, self.id, "true")
+
+    def create_stop_facility(self):
+        self.is_stop = True
+        self.origin.is_stop = True 
+        self.stopfacility = StopFacility(self.origin, self.dest, self.id, "true")
 
     def __hash__(self):
-        return (self.origin.id, self.origin.id)
+        return self.id
 
     def __eq__(self, other):
         return self.origin.id == other.origin.id and self.dest.id == other.dest.id
