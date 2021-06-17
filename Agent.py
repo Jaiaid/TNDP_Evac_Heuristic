@@ -8,6 +8,7 @@ class Agent:
         self.shelter_link = shelter_link
         self.home_link = home_link
         self.home_left_time = home_left_time
+        self.route = route
         self.stoplink = route.get_nearest_stoplink(home_link)
 
     def __hash__(self):
