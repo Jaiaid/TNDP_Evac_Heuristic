@@ -29,7 +29,7 @@ AGENT_TAG=["<person id=\"{0}\">", "</person>"]
 AGENT_PLAN_TAG=["<plan selected=\"yes\">", "</plan>"]
 AGENT_ACT_DESC_TAG=["<act type=\"{0}\" link=\"{1}\" x=\"{2}\" y=\"{3}\"  end_time=\"{4}\" />"]
 AGENT_ACT_DESC_TAG_NO_END_TIME=["<act type=\"{0}\" link=\"{1}\" x=\"{2}\" y=\"{3}\" />"]
-AGENT_LEG_DESC_TAG=["<leg mode=\"{0}\"><attributes><attribute name=\"routingMode\" class=\"java.lang.String\">pt</attribute></attributes></leg>"]
+AGENT_LEG_DESC_TAG=["<leg mode=\"{0}\"></leg>"]
 
 TYPE_STR1="home"
 TYPE_STR2="shelter"
@@ -259,7 +259,6 @@ class MatsimInputWriter:
             )
         file_stream.write(LINK_TAG[1]+'\n')
 
-
     def __write_link_desc(self, file_stream, id_no, src_id, dest_id, length, cap, speed, lane_count, mode_str):
         file_stream.write(LINK_DESCRIPTION_TAG[0].format(id_no, src_id, dest_id, length, cap, speed, lane_count, mode_str)+'\n')
 
@@ -270,22 +269,20 @@ class MatsimInputWriter:
             file_stream.write(AGENT_TAG[0].format(agent_id)+'\n')
             file_stream.write(AGENT_PLAN_TAG[0]+'\n')
             self.__write_act_desc(file_stream, TYPE_STR1, agent.home_link.id, agent.home_link.origin.x, agent.home_link.origin.y, "07:45:00")
-            self.__write_leg_desc(file_stream, LEG_MODE_WALK_STR)
-            self.__write_act_desc(file_stream, TYPE_STR3, agent.stoplink.id, agent.stoplink.origin.x, agent.stoplink.origin.y, None)
+            #self.__write_leg_desc(file_stream, LEG_MODE_WALK_STR, start_link_id=agent.home_link.id, end_link_id=agent.stoplink.id)
+            #self.__write_act_desc(file_stream, TYPE_STR3, agent.stoplink.id, agent.stoplink.origin.x, agent.stoplink.origin.y, None)
             self.__write_leg_desc(file_stream, LEG_MODE_PT_STR)
-            self.__write_act_desc(file_stream, TYPE_STR3, agent.stoplink.id, agent.shelter_link.origin.x, agent.shelter_link.origin.y, None)
-            self.__write_leg_desc(file_stream, LEG_MODE_WALK_STR)
+            #self.__write_act_desc(file_stream, TYPE_STR3, agent.stoplink.id, agent.shelter_link.origin.x, agent.shelter_link.origin.y, None)
+            #self.__write_leg_desc(file_stream, LEG_MODE_WALK_STR, start_link_id=agent.shelter_link.id, end_link_id=agent.shelter_link.id)
             self.__write_act_desc(file_stream, TYPE_STR2, agent.shelter_link.id, agent.shelter_link.origin.x, agent.shelter_link.origin.y, None)
             file_stream.write(AGENT_PLAN_TAG[1]+'\n')
             file_stream.write(AGENT_TAG[1]+'\n')
             
-
     def __write_act_desc(self, file_stream, type_str, link_id, x, y, end_time):
         if end_time is None:
             file_stream.write(AGENT_ACT_DESC_TAG_NO_END_TIME[0].format(type_str, link_id, x, y)+'\n')
         else:
             file_stream.write(AGENT_ACT_DESC_TAG[0].format(type_str, link_id, x, y, end_time)+'\n')
-
 
     def __write_leg_desc(self,file_stream, mode_str):
         file_stream.write(AGENT_LEG_DESC_TAG[0].format(mode_str)+'\n')
