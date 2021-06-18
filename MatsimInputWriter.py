@@ -167,9 +167,9 @@ class MatsimInputWriter:
     def __write_stop_desc(self, file_stream, stopfacility):
         file_stream.write(TRANSIT_STOP_DESC_TAG[0].format(
             stopfacility.id, 
-            stopfacility.x, 
-            stopfacility.y, 
-            stopfacility.linkid,
+            stopfacility.link.origin.x, 
+            stopfacility.link.origin.y, 
+            stopfacility.link.id,
             stopfacility.is_blocking
         )+'\n')
 
@@ -199,13 +199,6 @@ class MatsimInputWriter:
         for round_trip in range(route.round_trip_count):
             # go route
             for link in route.route_link_list:
-                file_stream.write(
-                    ROUTE_LINK_DESC_TAG[0].format(
-                        link.id
-                    ) + '\n'
-                )
-            # return route
-            for link in route.return_route_link_list:
                 file_stream.write(
                     ROUTE_LINK_DESC_TAG[0].format(
                         link.id

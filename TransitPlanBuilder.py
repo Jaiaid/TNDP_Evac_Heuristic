@@ -132,42 +132,48 @@ class TransitPlanBuilder:
             assert len(self.__demand_graph)==node_count
 
     
-    def __parse_route_files(self, route_file_path, return_route_file_path):
+    def __parse_route_files(self, route_file_path):
         assert self.__node_dict is not None
 
         self.__route_dict = {}
 
-        with open(return_route_file_path) as return_route_file:
-            route_id = 0
-            for line in return_route_file.readlines():
-                self.__route_dict[route_id] = NetworkRoute(id=route_id, transit_mode=self.__transit_mode_str)
-                route_nodes_str = line.rsplit()
-                for i, route_node_str in enumerate(route_nodes_str):
-                    if i > 0:
-                        self.__route_dict[route_id].add_return_link(self.__link_dict[int(route_nodes_str[i-1]), int(route_node_str)])
-
-                route_id += 1
-
         route_id = 0
         with open(route_file_path) as route_file:
             lines = route_file.readlines()
-            total_demand = float(lines[0])
-            route_count = int(lines[1])
 
-            for idx in range(2, len(lines), 2):
-                sat_demand=float(lines[idx].rsplit()[0])
-                self.__route_dict[route_id].set_sat_demand(sat_demand)
+            for idx in range(0, len(lines), 2):
+                # first create the route
+                self.__route_dict[route_id] = NetworkRoute(id=route_id, transit_mode=self.__transit_mode_str)
+                # from each two line first line contains route stops
+                stoppoint_id_list = []
+                stop_nodes_str = lines[idx].rsplit()
+                print(stop_nodes_str)
+                for i, stop_node_str in enumerate(stop_nodes_str):
+                    stoppoint_id_list.append(int(stop_node_str))
 
+                # 2nd line contain all nodes in route
                 route_nodes_str = lines[idx+1].rsplit()
                 for i, route_node_str in enumerate(route_nodes_str):
                     if i == 0:
                         continue
-                    self.__route_dict[route_id].add_link(self.__link_dict[int(route_nodes_str[i-1]), int(route_node_str)])
+                    if int(route_nodes_str[i-1]) in stoppoint_id_list:
+                        # stop will be made at first appearance 
+                        # for a route a stop node can create only one stop facility
+                        stoppoint_id_list.remove(int(route_nodes_str[i-1]))
+                        assert int(route_nodes_str[i-1]) not in stoppoint_id_list 
+                        self.__route_dict[route_id].add_link(
+                            link=self.__link_dict[int(route_nodes_str[i-1]), int(route_node_str)], 
+                            create_stop_facility=True
+                        )
+                    else:
+                        self.__route_dict[route_id].add_link(
+                            link=self.__link_dict[int(route_nodes_str[i-1]), int(route_node_str)], 
+                            create_stop_facility=False
+                        )
 
-                # shelter node is special, even if it is not in pickuppoint list it will be a stop node and so is associated link
-                self.__route_dict[route_id].set_stop_at_last_node()
+                print(self.__route_dict[route_id].get_sat_demand(self.__demand_graph))
+
                 route_id += 1
-
 
     def __create_route_stop_profile(self, max_roundtrip_minute, wait_minute):
         for route_id in self.__route_dict:
@@ -226,7 +232,7 @@ class TransitPlanBuilder:
         schedule_id = 0
         for route_id in self.__route_dict:
             route = self.__route_dict[route_id]
-            route_sat_demand = route.get_sat_demand()
+            route_sat_demand = route.get_sat_demand(self.__demand_graph)
             allocated_vehicle_count = int(fleet_size * route_sat_demand / total_demand)
 
             # at least one vehicle will be given in the route
@@ -262,7 +268,7 @@ class TransitPlanBuilder:
         demand_graph = copy.deepcopy(self.__demand_graph)
         for route_id in self.__route_dict:
             route = self.__route_dict[route_id]
-            shelter_link = route.return_route_link_list[0]
+            shelter_link = route.stopfacility_list[-1].link
             for link in route.route_link_list:
                 if demand_graph[link.origin.id][shelter_link.origin.id] > 0:
                     person_count = int(demand_graph[link.origin.id][shelter_link.origin.id])
@@ -274,18 +280,18 @@ class TransitPlanBuilder:
                                 shelter_link=shelter_link, route=route
                             )
                         id_no += 1
-                        
+
                     # this person plans are written make it zero so overlapped nodes are not written multiple times
                     demand_graph[link.origin.id][shelter_link.origin.id] = 0
 
     def create_plan(
             self, network_file_path: str, demand_file_path: str, pickuppoint_file_path: str, 
-            route_file_path: str, return_route_file_path: str, vehicle_dict: dict, 
+            route_file_path: str, vehicle_dict: dict, 
             start_time: str, minute_between_start: int, max_roundtrip_minute: int, wait_minute_at_stop: int):
         self.__parse_pickuppoint_file(pickup_point_file_path=pickuppoint_file_path)
         self.__parse_network_file(network_file_path=network_file_path)
         self.__parse_demand_file(demand_file_path=demand_file_path)
-        self.__parse_route_files(route_file_path=route_file_path, return_route_file_path=return_route_file_path)
+        self.__parse_route_files(route_file_path=route_file_path)
         self.__create_agents(home_left_time="07:45:00")
         self.__create_vehicles(vehicle_dict=vehicle_dict)
         self.__create_schedule(start_time=start_time, minute_between_start=minute_between_start)

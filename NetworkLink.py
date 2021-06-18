@@ -1,11 +1,11 @@
 from NetworkNode import NetworkNode
 
+class NetworkLink:pass
+
 class StopFacility:
-    def __init__(self, origin: NetworkNode, dest: NetworkNode, linkid: int, is_blocking: str) -> None:
-        self.id = str(origin.id) + "_" + str(dest.id)
-        self.x = origin.x
-        self.y = origin.y
-        self.linkid = linkid
+    def __init__(self, link: NetworkLink, is_blocking: str) -> None:
+        self.id = str(link.origin.id) + "_" + str(link.dest.id)
+        self.link = link
         self.is_blocking = is_blocking
 
 class NetworkLink:
@@ -13,7 +13,6 @@ class NetworkLink:
         self.id = id
         self.origin = origin
         self.dest = dest
-        self.is_stop = origin.is_stop
         self.length = length
         self.speed = speed
         self.capacity = capacity
@@ -24,13 +23,11 @@ class NetworkLink:
         self.deperture_offset = None
         
         self.stopfacility = None
-        if self.is_stop:
-            self.stopfacility = StopFacility(self.origin, self.dest, self.id, "true")
 
     def create_stop_facility(self):
         self.is_stop = True
         self.origin.is_stop = True 
-        self.stopfacility = StopFacility(self.origin, self.dest, self.id, "true")
+        self.stopfacility = StopFacility(self, "true")
 
     def __hash__(self):
         return self.id
