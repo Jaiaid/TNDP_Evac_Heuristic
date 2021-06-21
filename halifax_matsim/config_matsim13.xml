@@ -1,7 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE config SYSTEM "http://www.matsim.org/files/dtd/config_v2.dtd">
 <config>
-
 	<module name="global">
 		<param name="randomSeed" value="4711" />
 		<param name="coordinateSystem" value="Atlantis" />
@@ -17,6 +16,13 @@
 		<param name="stuckTime" value="100000000" />
 		<!-- treats PT as deterministic. PT vehicles will run with a steady speed. Should be used with separate network layers for PT and other network modes. -->
 		<param name="useDeterministicPt" value="false" />
+	</module>
+
+	<module name="linkStats" >
+		<!-- Specifies over how many iterations the link volumes should be averaged that are used for the link statistics. Use 1 or 0 to only use the link volumes of a single iteration. This values cannot be larger than the value specified for writeLinkStatsInterval -->
+		<param name="averageLinkStatsOverIterations" value="1" />
+		<!-- Specifies how often the link stats should be calculated and written. Use 0 to disable the generation of link stats. -->
+		<param name="writeLinkStatsInterval" value="1" />
 	</module>
 
 	<module name="network">
@@ -36,6 +42,10 @@
 		<param name="enableLinkToLinkRouting" value="true" />
 		<param name="eventsFileFormat" value="xml" />
 		<param name="mobsim" value="qsim" />
+		<!-- Comma-separated list of visualizer output file formats. `transims', `googleearth', and `otfvis'. -->
+		<!--<param name="snapshotFormat" value="transims" />-->
+		<!-- The type of routing (least cost path) algorithm used, may have the values: [Dijkstra, AStarLandmarks, FastDijkstra, FastAStarLandmarks, SpeedyALT] -->
+		<param name="routingAlgorithmType" value="Dijkstra" />
 	</module>
 
 	<module name="qsim">
@@ -68,7 +78,7 @@
 
 			<parameterset type="modeParams">
 				<param name="mode" value="car"/>
-				<param name="marginalUtilityOfTraveling_util_hr" value="-6.0" />
+				<param name="marginalUtilityOfTraveling_util_hr" value="0.0" />
 			</parameterset>
 			<parameterset type="modeParams">
 				<param name="mode" value="pt"/>
@@ -109,17 +119,17 @@
 
 	<module name="transitRouter" >
 		<!-- additional time the router allocates when a line switch happens, Can be interpreted as a 'savity' time that agents need to savely transfer from one line to another -->
-		<param name="additionalTransferTime" value="0.0" />
+		<param name="additionalTransferTime" value="10000000.0" />
 		<!-- Factor with which direct walk generalized cost is multiplied before it is compared to the pt generalized cost.  Set to a very high value to reduce direct walk results. -->
-		<param name="directWalkFactor" value="1000000.0" />
+		<param name="directWalkFactor" value="10000000000.0" />
 		<!-- step size to increase searchRadius if no stops are found -->
-		<param name="extensionRadius" value="1000.0" />
+		<param name="extensionRadius" value="0.0" />
 
 		<!-- maximum beeline distance between stops that agents could transfer to by walking -->
 		<param name="maxBeelineWalkConnectionDistance" value="0.0" />
 
 		<!-- the radius in which stop locations are searched, given a start or target coordinate -->
-		<param name="searchRadius" value="10000.0" />
+		<param name="searchRadius" value="0.0" />
 	</module>
 
 	<module name="travelTimeCalculator" >
@@ -130,13 +140,13 @@
 		<!-- (only for backwards compatiblity; only used if separateModes==false)  Only modes included in analyzedModes are included. -->
 		<param name="filterModes" value="false" />
 		<!-- The lenght (in sec) of the time period that is splited into time bins; an additional time bin is created to aggregate all travel times collected after maxTime -->
-		<param name="maxTime" value="108000" />
+		<param name="maxTime" value="172800" />
 		<!-- (only for backwards compatibility) If false, link travel times are measured and aggregated over all vehicles using the link. -->
 		<param name="separateModes" value="false" />
 		<!-- How to deal with congested time bins that have no link entry events. `optimistic' assumes free speed (too optimistic); 'experimental_LastMile' is experimental and probably too pessimistic. -->
 		<param name="travelTimeAggregator" value="optimistic" />
 		<!-- The size of the time bin (in sec) into which the link travel times are aggregated for the router -->
-		<param name="travelTimeBinSize" value="900" />
+		<param name="travelTimeBinSize" value="1800" />
 		<!-- possible values: TravelTimeCalculatorArray TravelTimeCalculatorHashMap  -->
 		<param name="travelTimeCalculator" value="TravelTimeCalculatorArray" />
 		<!-- How to deal with link entry times at different positions during the time bin. Currently supported: average, linearinterpolation -->
