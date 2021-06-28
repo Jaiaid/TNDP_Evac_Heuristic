@@ -1,4 +1,6 @@
+import simpy
 from NetworkNode import NetworkNode
+from simpy import resources
 
 class NetworkLink:pass
 
@@ -24,6 +26,9 @@ class NetworkLink:
         
         self.stopfacility = None
 
+    def set_resource(self, env: simpy.Environment):
+        self.resource_obj = simpy.Resource(env, capacity=self.capacity)
+
     def create_stop_facility(self):
         self.is_stop = True
         self.origin.is_stop = True 
@@ -39,3 +44,6 @@ class NetworkLink:
         # Not strictly necessary, but to avoid having both x==y and x!=y
         # True at the same time
         return not(self.origin.id == other.origin.id and self.dest.id == other.dest.id)
+
+    def request_access(self):
+        pass
