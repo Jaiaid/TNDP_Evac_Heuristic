@@ -147,7 +147,7 @@ class TransitPlanBuilder:
                 # from each two line first line contains route stops
                 stoppoint_id_list = []
                 stop_nodes_str = lines[idx].rsplit()
-                print(stop_nodes_str)
+                #print(stop_nodes_str)
                 for i, stop_node_str in enumerate(stop_nodes_str):
                     stoppoint_id_list.append(int(stop_node_str))
 
@@ -171,7 +171,7 @@ class TransitPlanBuilder:
                             create_stop_facility=False
                         )
 
-                print(self.__route_dict[route_id].get_sat_demand(self.__demand_graph))
+                #print(self.__route_dict[route_id].get_sat_demand(self.__demand_graph))
 
                 route_id += 1
 
@@ -315,3 +315,56 @@ class TransitPlanBuilder:
         writer.write_schedule_file(
             os.path.join(output_dir_path, "transit_schedule.xml"), route_dict=self.__route_dict
         )
+
+    def write_customsim_input(self, output_dir_path: str, shelterid_list: list, minute_between_start: int):
+        if not os.path.exists(output_dir_path):
+            os.mkdir(output_dir_path)
+
+        with open(os.path.join(output_dir_path, "Bus_Edge.txt"), mode="w") as fout:
+            for link_id in self.__link_dict:
+                # links are unidirectional
+                link = self.__link_dict[link_id]
+                fout.write(' '.join([str(link.origin.id), str(link.dest.id), str(link.length), "1"+os.linesep]))
+
+        with open(os.path.join(output_dir_path, "Bus_Stop.txt"), mode="w") as fout:
+            for pickuppoint_id in self.__pickuppoint_list:
+                line = str(pickuppoint_id) + " "
+                for shelter_id in shelterid_list:
+                    line +=  str(self.__demand_graph[pickuppoint_id][shelter_id]) + " "
+                fout.write(line + os.linesep)
+ 
+        with open(os.path.join(output_dir_path, "Bus_Fleet.txt"), mode="w") as fout:
+            total_demand = sum(map(sum, self.__demand_graph))
+            fleet_size = len(self.__vehicle_list)
+            allocated_upto_idx = 1
+
+            for route_id in self.__route_dict:
+                route = self.__route_dict[route_id]
+                route_sat_demand = route.get_sat_demand(self.__demand_graph)
+                allocated_vehicle_count = int(fleet_size * route_sat_demand / total_demand)
+
+                # at least one vehicle will be given in the route
+                if allocated_vehicle_count == 0:
+                    allocated_vehicle_count = 1
+
+                headway = 0
+                for i in range(allocated_vehicle_count):
+                    fout.write("Fleet {0}".format(allocated_upto_idx) + os.linesep)
+                    route_node_id_list = []
+                    for route_link in route.route_link_list:
+                        route_node_id_list.append(str(route_link.origin.id))
+                    fout.write(" ".join(route_node_id_list) + os.linesep)
+                    fout.write(str(headway * 60) + os.linesep)
+                    fout.write(str(route.round_trip_count) + os.linesep)
+                    
+                    allocated_upto_idx += 1
+                    headway += minute_between_start
+
+        with open(os.path.join(output_dir_path, "Bus_RouteStop.txt"), mode="w") as fout:
+            for route_id in self.__route_dict:
+                route = self.__route_dict[route_id]
+                stopfacility_list = route.get_stopfacilities()
+
+                route_stopnode_id_str_list = [str(stopfacility.link.origin.id) for stopfacility in stopfacility_list] 
+                line = " ".join(route_stopnode_id_str_list)
+                fout.write(line + os.linesep)
