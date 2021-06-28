@@ -330,7 +330,7 @@ class TransitPlanBuilder:
             for pickuppoint_id in self.__pickuppoint_list:
                 line = str(pickuppoint_id) + " "
                 for shelter_id in shelterid_list:
-                    line +=  str(self.__demand_graph[pickuppoint_id][shelter_id]) + " "
+                    line +=  str(int(self.__demand_graph[pickuppoint_id][shelter_id])) + " "
                 fout.write(line + os.linesep)
  
         with open(os.path.join(output_dir_path, "Bus_Fleet.txt"), mode="w") as fout:
