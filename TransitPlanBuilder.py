@@ -327,12 +327,13 @@ class TransitPlanBuilder:
                 fout.write(' '.join([str(link.origin.id), str(link.dest.id), str(link.length), "1"+os.linesep]))
 
         with open(os.path.join(output_dir_path, "Bus_Stop.txt"), mode="w") as fout:
-            for pickuppoint_id in self.__pickuppoint_list:
-                line = str(pickuppoint_id) + " "
+            for node_id in range(len(self.__network_graph)):
+                line = str(node_id) + " "
                 for shelter_id in shelterid_list:
-                    line +=  str(int(self.__demand_graph[pickuppoint_id][shelter_id])) + " "
+                    line +=  str(int(self.__demand_graph[node_id][shelter_id])) + " "
                 fout.write(line + os.linesep)
  
+        route_allocated_vehicle_count_list = []
         with open(os.path.join(output_dir_path, "Bus_Fleet.txt"), mode="w") as fout:
             total_demand = sum(map(sum, self.__demand_graph))
             fleet_size = len(self.__vehicle_list)
@@ -342,10 +343,10 @@ class TransitPlanBuilder:
                 route = self.__route_dict[route_id]
                 route_sat_demand = route.get_sat_demand(self.__demand_graph)
                 allocated_vehicle_count = int(fleet_size * route_sat_demand / total_demand)
-
                 # at least one vehicle will be given in the route
                 if allocated_vehicle_count == 0:
                     allocated_vehicle_count = 1
+                route_allocated_vehicle_count_list.append(allocated_vehicle_count)
 
                 headway = 0
                 for i in range(allocated_vehicle_count):
@@ -360,6 +361,7 @@ class TransitPlanBuilder:
                     allocated_upto_idx += 1
                     headway += minute_between_start
 
+        assert sum(route_allocated_vehicle_count_list) == allocated_upto_idx - 1
         with open(os.path.join(output_dir_path, "Bus_RouteStop.txt"), mode="w") as fout:
             for route_id in self.__route_dict:
                 route = self.__route_dict[route_id]
@@ -367,4 +369,5 @@ class TransitPlanBuilder:
 
                 route_stopnode_id_str_list = [str(stopfacility.link.origin.id) for stopfacility in stopfacility_list] 
                 line = " ".join(route_stopnode_id_str_list)
-                fout.write(line + os.linesep)
+                for i in range(route_allocated_vehicle_count_list[route_id]):
+                    fout.write(line + os.linesep)
