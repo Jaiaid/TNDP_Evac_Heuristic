@@ -9,8 +9,9 @@ if  __name__ == "__main__":
     parser.add_argument("-df", "--demand_file", help="file path containing network demand information in 2d matrix", required=True)
     parser.add_argument("-pf", "--pickuppoint_file", help="file path containing pickuppoint id (corresponding to given network graph row position)", required=True)
     parser.add_argument("-rf", "--route_file", help="file path containing all forward route, satisfied demand by route information", required=True)
-    parser.add_argument("-o", "--output_dir", help="output directory path to dump generated data", required=True)
-    
+    parser.add_argument("-mo", "--matsim_data_output_dir", help="output directory path to dump generated data for matsim", required=False)
+    parser.add_argument("-co", "--customsim_data_output_dir", help="output directory path to dump generated data for custom simulator", required=False)
+
     args = vars(parser.parse_args())
 
     planbuilder = TransitPlanBuilder(
@@ -30,4 +31,12 @@ if  __name__ == "__main__":
         max_roundtrip_minute=CONF.TIME_TRANSIT_RETURN_MINUTE, wait_minute_at_stop=CONF.TIME_WAITING_MIN
     )
 
-    planbuilder.write_plan_matsim_format(args["output_dir"])
+    if args["matsim_data_output_dir"] is not None:
+        planbuilder.write_plan_matsim_format(output_dir_path=args["matsim_data_output_dir"])
+    
+    if args["customsim_data_output_dir"] is not None:
+        planbuilder.write_customsim_input(
+            output_dir_path=args["customsim_data_output_dir"], 
+            shelterid_list=[381, 382], 
+            minute_between_start=CONF.TIME_BETWEEN_NEW_TRANSIT_RELEASE_MINUTE
+        )

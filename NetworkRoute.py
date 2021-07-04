@@ -1,7 +1,5 @@
 from typing import List
 from NetworkLink import NetworkLink, StopFacility
-from NetworkNode import NetworkNode
-from Vehicle import Vehicle
 from Schedule import Schedule
 
 class NetworkRouteProfileEntry():
@@ -19,7 +17,6 @@ class NetworkRoute:
         self.shelter_link_id = None
         self.stopfacility_list = []
         self.round_trip_count = 0
-        self.vehicle_list = []
         self.deperture_list = []
         self.profilelist = []
         self.link_to_nearest_stoplink_dict = {}
@@ -45,9 +42,6 @@ class NetworkRoute:
                 link.create_stop_facility()
             self.stopfacility_list.append(link.stopfacility)
 
-    def add_vehicle(self, vehicle: Vehicle):
-        self.vehicle_list.append(vehicle)
-
     def set_round_trip_count(self, count: int):
         self.round_trip_count = count
 
@@ -60,7 +54,7 @@ class NetworkRoute:
     def get_sat_demand(self, demand_graph):
         assert len(self.stopfacility_list) > 0
         demand = 0
-        print([stopfacility.link.origin.id for stopfacility in self.stopfacility_list])
+        #print([stopfacility.link.origin.id for stopfacility in self.stopfacility_list])
         for stopfacility in self.stopfacility_list:
             demand += demand_graph[stopfacility.link.origin.id][self.stopfacility_list[-1].link.origin.id]
         return demand
