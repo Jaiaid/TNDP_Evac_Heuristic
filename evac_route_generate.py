@@ -50,27 +50,26 @@ def get_highest_demand_destination_from(source, demand_matrix):
 
 def get_nonzero_lowest_demand_dst_to(dest, demand_matrix):
     valid_idx = np.where(demand_matrix[pickup_point_list,dest] > 0)[0]
-    if valid_idx.shape[0] == 0:     
+    if valid_idx.shape[0] == 0:
         return None
-    node =  np.argmin(demand_matrix[valid_idx,dest])
-    return pickup_point_list[node]
+    node =  np.argmin(demand_matrix[np.array(pickup_point_list)[valid_idx],dest])
+    #print(np.array(pickup_point_list)[valid_idx], node)
+    return np.array(pickup_point_list)[valid_idx][node]
 
 def get_highest_demand_dst_to(dest, demand_matrix):
     node = np.argmax(demand_matrix[pickup_point_list,dest])
     return pickup_point_list[node]
 
-def set_demand_satisfied_in_route(demand_matrix, route, dest):
+def set_demand_satisfied_in_route(demand_matrix, route, dest, stop_point_list):
     demand_matrix = demand_matrix.copy()
     satisfied_demand = 0
-    stop_point_list = []
     for i in route:
-        satisfied_demand += demand_matrix[i, dest]
-        if demand_matrix[i][dest] != 0:
-            stop_point_list.append(i)
-        demand_matrix[i][dest] = 0
-    # finally include the shelter point (route last node/dest)
-    stop_point_list.append(dest)
-    return demand_matrix, satisfied_demand, stop_point_list
+        if demand_matrix[i,dest] != 0 and i in stop_point_list:
+            satisfied_demand += demand_matrix[i, dest]
+            # print("zeroing demand {0} of {1},{2}".format(demand_matrix[i,dest], i, dest))
+            demand_matrix[i,dest] = 0
+
+    return demand_matrix, satisfied_demand
 
 
 def disconnect_nodes_in_route_from_graph(graph, route):
@@ -99,15 +98,18 @@ def get_best_route_between(source, dest, graph, demand_matrix, weight):
 
 def get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count, max_hop_count):
     graph = graph.copy()
-    alter = False
-    demand_matrix = demand_matrix.copy()
+    alter = True
+    demand_matrix = demand_matrix.copy()        
     source, dest = get_highest_demand_pair(demand_matrix)
-    # at least these two will be stops
-    stop_point_list = [source, dest]
+    demand_matrix[source][dest] = 0
+    # at least these one will be stop
+    # print("appending {0}".format(source))
+    stop_point_list = [source]
     route = [source]
-    iteration_count = 0
-    while iteration_count < max_hop_count:
+    iteration_count = 0      
+    while iteration_count <= max_hop_count:
         source2 = dest
+
         if alter:
             source2 = get_nonzero_lowest_demand_dst_to(dest, demand_matrix)
         else:
@@ -123,19 +125,21 @@ def get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count,
             break
 
         route_chunk = route_chunk[1:]
-        if get_route_len(route) < max_hop_count:
+        if len(stop_point_list) < max_hop_count:
             route_to_dest = get_best_route_between(source2, dest, graph, demand_matrix, weight)
             if len(route_to_dest) == 2 and graph[route_to_dest[0]][route_to_dest[1]]["weight"] == float("inf"):
                 break
             route.extend(route_chunk)
             # add the newly added stop point
-            source
+            # print("appending {0}".format(source2))
+            stop_point_list.append(source2)
         else:
-            alter = not alter
             break
 
-        demand_matrix, _, _ = set_demand_satisfied_in_route(demand_matrix, route, dest)
+        #demand_matrix, _ = set_demand_satisfied_in_route(demand_matrix, route, dest, stop_point_list)
+        demand_matrix[source2, dest] = 0        
         source = source2
+        
         # source, dest = source2, get_highest_demand_destination_from(dest, demand_matrix)
         #if demand_matrix[source][dest] == 0.:
         #    break
@@ -145,20 +149,22 @@ def get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count,
     route_chunk = get_best_route_between(source, dest, graph, demand_matrix, weight)
 
     route.extend(route_chunk[1:])
+    # print("completing {0}".format(source2))
+    stop_point_list.append(route[-1])
     # followings are unnecessary as after this function will be exited and this copy of demand matrix will be lost
     # demand_matrix, _, _ = set_demand_satisfied_in_route(demand_matrix, route, dest)
     # disconnect_nodes_in_route_from_graph(graph, route[:-1])
     
-    return route
+    return route, stop_point_list
 
 
 def get_routes(graph, demand_matrix, weight, min_hop_count, max_hop_count):
     demand_matrix = demand_matrix.copy()
     while np.sum(demand_matrix) > 0.:
-        route = get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count, max_hop_count)
+        route, stop_point_list = get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count, max_hop_count)
         # now to modify the demand matrix according to the serviced node's demand by this route
         # node which has still non zero demand and will be made zero should be the stoppoint of route 
-        demand_matrix, satisfied_demand, stop_point_list = set_demand_satisfied_in_route(demand_matrix, route, route[-1])
+        demand_matrix, satisfied_demand = set_demand_satisfied_in_route(demand_matrix, route, route[-1], stop_point_list)
         gen_route_demand_stoppoint_tuple_list.append((route, satisfied_demand, stop_point_list))
         yield route
 
@@ -183,8 +189,9 @@ if __name__ == "__main__":
     if len(sys.argv) < 6:
         print("Usage: python3 main.py distance_file demand_file pickup_point_list_file max_hop_count weight")
         exit(0)
-
+    
     dist_file = Path(sys.argv[1])
+    
     if dist_file.suffix == '.json':
         with open(dist_file) as f:
             data = json.load(f)
@@ -217,7 +224,7 @@ if __name__ == "__main__":
 
     for route in routes:
         try:
-            assert(len(route) == len(set(route)), "node repeated in route")
+            assert len(route) == len(set(route)), "node repeated in route"
         except AssertionError as e:
             pass
 
