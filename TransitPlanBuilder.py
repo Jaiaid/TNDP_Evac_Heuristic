@@ -316,7 +316,7 @@ class TransitPlanBuilder:
             os.path.join(output_dir_path, "transit_schedule.xml"), route_dict=self.__route_dict
         )
 
-    def write_customsim_input(self, output_dir_path: str, shelterid_list: list, minute_between_start: int):
+    def write_customsim_input(self, output_dir_path: str, shelterid_list: list, minute_between_start: int, separate_return_route: bool):
         if not os.path.exists(output_dir_path):
             os.mkdir(output_dir_path)
 
@@ -326,7 +326,7 @@ class TransitPlanBuilder:
                 link = self.__link_dict[link_id]
                 fout.write(' '.join([str(link.origin.id), str(link.dest.id), str(link.length), "1"+os.linesep]))
 
-        with open(os.path.join(output_dir_path, "Bus_Stop.txt"), mode="w") as fout:
+        with open(os.path.join(output_dir_path, "Bus_Stops.txt"), mode="w") as fout:
             for node_id in range(len(self.__network_graph)):
                 line = str(node_id) + " "
                 for shelter_id in shelterid_list:
@@ -349,11 +349,17 @@ class TransitPlanBuilder:
                 route_allocated_vehicle_count_list.append(allocated_vehicle_count)
 
                 headway = 0
+                stopfacility_list = route.get_stopfacilities()
                 for i in range(allocated_vehicle_count):
-                    fout.write("Fleet {0}".format(allocated_upto_idx) + os.linesep)
+                    fout.write("Fleet {0} on {1}'th route".format(allocated_upto_idx, route_id) + os.linesep)
                     route_node_id_list = []
                     for route_link in route.route_link_list:
                         route_node_id_list.append(str(route_link.origin.id))
+                        # if not separate return route then forward route will be considered backward route
+                        if not separate_return_route and \
+                            route_link.origin.id == stopfacility_list[-1].link.origin.id:
+                            break
+
                     fout.write(" ".join(route_node_id_list) + os.linesep)
                     fout.write(str(headway * 60) + os.linesep)
                     fout.write(str(route.round_trip_count) + os.linesep)
