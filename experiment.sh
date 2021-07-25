@@ -6,7 +6,7 @@ DIR=exp${DATE}_result
 mkdir -p $DIR
 
 MIN_HOP=5
-MAX_HOP=20
+MAX_HOP=25
 WEIGHT=1
 
 rm -f $DIR/solution_set.txt
