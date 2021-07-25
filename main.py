@@ -10,6 +10,7 @@ if  __name__ == "__main__":
     parser.add_argument("-pf", "--pickuppoint_file", help="file path containing pickuppoint id (corresponding to given network graph row position)", required=True)
     parser.add_argument("-rf", "--route_file", help="file path containing all forward route, satisfied demand by route information", required=True)
     parser.add_argument("-mo", "--matsim_data_output_dir", help="output directory path to dump generated data for matsim", required=False)
+    parser.add_argument("-smret", "--same_return_route", help="if backward route should be forward route in reverse", required=False, default=False)
     parser.add_argument("-co", "--customsim_data_output_dir", help="output directory path to dump generated data for custom simulator", required=False)
 
     args = vars(parser.parse_args())
@@ -38,5 +39,6 @@ if  __name__ == "__main__":
         planbuilder.write_customsim_input(
             output_dir_path=args["customsim_data_output_dir"], 
             shelterid_list=[381, 382], 
-            minute_between_start=CONF.TIME_BETWEEN_NEW_TRANSIT_RELEASE_MINUTE
+            minute_between_start=CONF.TIME_BETWEEN_NEW_TRANSIT_RELEASE_MINUTE,
+            separate_return_route=(not bool(args["same_return_route"]))
         )
