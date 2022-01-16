@@ -4,11 +4,14 @@ import networkx as nx
 import numpy as np
 from pathlib import Path
 import os
-
+import time
+import math
 
 
 gen_route_demand_stoppoint_tuple_list = []
 pickup_point_list = []
+
+demand_avg = 0
 
 
 def get_route_len(route):
@@ -97,13 +100,14 @@ def get_best_route_between(source, dest, graph, demand_matrix, weight):
 
 
 def get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count, max_hop_count):
-    graph = graph.copy()
+    # graph = graph.copy()
     alter = True
     demand_matrix = demand_matrix.copy()        
     source, dest = get_highest_demand_pair(demand_matrix)
     demand_matrix[source][dest] = 0
     # at least these one will be stop
     # print("appending {0}".format(source))
+    filled_demand = demand_matrix[source, dest]
     stop_point_list = [source]
     route = [source]
     iteration_count = 0      
@@ -118,7 +122,7 @@ def get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count,
         if source2 is None:
             source2 = source
             break
-
+        filled_demand += demand_matrix[source2, dest]
         try:
             route_chunk = get_best_route_between(source, source2, graph, demand_matrix, weight)
         except nx.NetworkXNoPath as e:
@@ -143,9 +147,11 @@ def get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count,
         # source, dest = source2, get_highest_demand_destination_from(dest, demand_matrix)
         #if demand_matrix[source][dest] == 0.:
         #    break
-        alter = not alter
+        if filled_demand * max_hop_count / len(stop_point_list) < demand_avg:
+            alter = False
+        else:
+            alter = True
         iteration_count += 1
-
     route_chunk = get_best_route_between(source, dest, graph, demand_matrix, weight)
 
     route.extend(route_chunk[1:])
@@ -220,8 +226,16 @@ if __name__ == "__main__":
     max_hop_count = int(sys.argv[4])
     min_hop_count = 0
 
-    routes = list(get_routes(graph, demand_matrix, weight, min_hop_count, max_hop_count))
+    node_with_demand_count = 0
+    for i in range(len(demand_matrix)):
+        for j in range(len(demand_matrix[i])):
+            if demand_matrix[i][j] > 0:
+                node_with_demand_count += 1
 
+    demand_sum = np.sum(demand_matrix)
+    demand_avg = demand_sum/math.ceil(node_with_demand_count/2)
+
+    routes = list(get_routes(graph, demand_matrix, weight, min_hop_count, max_hop_count))
     for route in routes:
         try:
             assert len(route) == len(set(route)), "node repeated in route"
@@ -243,4 +257,15 @@ if __name__ == "__main__":
         for node_id in return_route[1:]:
             print(node_id, end=' ')
         print('')
+
+    with open("routeset_{0}_{1}_VAR_format.txt".format(max_hop_count, weight), "w") as fout:
+        for tup in sorted(gen_route_demand_stoppoint_tuple_list, key=lambda tup: tup[1], reverse=True):
+            route = tup[0]            
+            fout.write("[")
+            for idx, node in enumerate(route):
+                if idx > 0:
+                    fout.write(", " + str(node))
+                else:
+                    fout.write(str(node))
+            fout.write("]")
 

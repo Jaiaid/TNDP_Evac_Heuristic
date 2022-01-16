@@ -1,10 +1,11 @@
 #!/bin/bash
 
 IN_DIR="../data/Halifax"
-ROUTE_DIR="exp20210717_result"
+#ROUTE_DIR="exp20210823_result"
+ROUTE_DIR="exp_random_route_20220107_result/solution_1"
 
-MIN_HOP=5
-MAX_HOP=25
+MIN_HOP=1
+MAX_HOP=56
 WEIGHT=1
 SAME_RET_ROUTE=True
 
