@@ -3,19 +3,18 @@ import json
 import networkx as nx
 import numpy as np
 from pathlib import Path
-import copy
-import random
-import math
 import os
 import time
+import math
+import copy
+import random
+
 
 RANDOM_ROUTE_GENERATION_COUNT = 5
 
-gen_route_demand_stoppoint_tuple_list = []
+gen_random_route_demand_stoppoint_tuple_list = []
 pickup_point_list = []
 
-gen_route_demand_list = []
-random_gen_route_demand_list = []
 demand_avg = 0
 
 
@@ -75,9 +74,7 @@ def set_demand_satisfied_in_route(demand_matrix, route, dest, stop_point_list):
         if demand_matrix[i,dest] != 0 and i in stop_point_list:
             satisfied_demand += demand_matrix[i, dest]
             # print("zeroing demand {0} of {1},{2}".format(demand_matrix[i,dest], i, dest))
-            # print("satisfied ", demand_matrix[i, dest])
             demand_matrix[i,dest] = 0
-    # print("==******8")
 
     return demand_matrix, satisfied_demand
 
@@ -106,32 +103,26 @@ def get_best_route_between(source, dest, graph, demand_matrix, weight):
     return best_route
 
 
-def get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count, max_hop_count):
+def get_route_random_selection(graph, demand_matrix, weight, min_hop_count, max_hop_count, demand_node_list, dest):
     # graph = graph.copy()
-    alter = True
     demand_matrix = demand_matrix.copy()        
-    source, dest = get_highest_demand_pair(demand_matrix)
+    source = random.choice(demand_node_list)
+    demand_node_list.remove(source)
     demand_matrix[source][dest] = 0
     # at least these one will be stop
     # print("appending {0}".format(source))
     stop_point_list = [source]
-    
-    filled_demand = demand_matrix[source, dest]
     route = [source]
-    iteration_count = 0      
-    while iteration_count <= max_hop_count:
+    iteration_count = 1
+    while iteration_count < max_hop_count and len(demand_node_list) > 0:
         source2 = dest
 
-        if alter:
-            source2 = get_nonzero_lowest_demand_dst_to(dest, demand_matrix)
-        else:
-            source2 = get_highest_demand_dst_to(dest, demand_matrix)
+        source2 = random.choice(demand_node_list)
+        demand_node_list.remove(source2)
 
         if source2 is None:
             source2 = source
             break
-
-        filled_demand += demand_matrix[source2, dest]
         try:
             route_chunk = get_best_route_between(source, source2, graph, demand_matrix, weight)
         except nx.NetworkXNoPath as e:
@@ -153,13 +144,7 @@ def get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count,
         demand_matrix[source2, dest] = 0        
         source = source2
         
-        # source, dest = source2, get_highest_demand_destination_from(dest, demand_matrix)
-        #if demand_matrix[source][dest] == 0.:
-        #    break
-        if filled_demand * max_hop_count / len(stop_point_list) < demand_avg:
-            alter = False
-        else:
-            alter = True
+        
         iteration_count += 1
     route_chunk = get_best_route_between(source, dest, graph, demand_matrix, weight)
 
@@ -173,20 +158,10 @@ def get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count,
     return route, stop_point_list
 
 
-def get_routes(graph, demand_matrix, weight, min_hop_count, max_hop_count):
+def get_routes_random_selection(graph, demand_matrix, weight, min_hop_count, max_hop_count):
     demand_matrix = demand_matrix.copy()
-    while np.sum(demand_matrix) > 0.:
-        route, stop_point_list = get_route_satisfying_constraint(graph, demand_matrix, weight, min_hop_count, max_hop_count)
-        # now to modify the demand matrix according to the serviced node's demand by this route
-        # node which has still non zero demand and will be made zero should be the stoppoint of route 
-        demand_matrix, satisfied_demand = set_demand_satisfied_in_route(demand_matrix, route, route[-1], stop_point_list)
-        gen_route_demand_list.append(satisfied_demand)
-        gen_route_demand_stoppoint_tuple_list.append((route, satisfied_demand, stop_point_list))
-        yield route
 
-def get_random_routes(graph, demand_matrix, weight, min_hop_count, max_hop_count):
     shelter_node_dict = {}
-    random_gen_route_demand_list.append([])
     
     # create demand node list shelter specific
     for i in range(len(demand_matrix)):
@@ -197,20 +172,17 @@ def get_random_routes(graph, demand_matrix, weight, min_hop_count, max_hop_count
                 else:
                     shelter_node_dict[j] = [i]
 
-    for shelter in shelter_node_dict.keys():
-        demand_node_list = shelter_node_dict[shelter]
-        while len(demand_node_list) > 0:
-            satisfied_demand = 0
-            node_count = 0
-            while len(demand_node_list) > 0 and node_count < max_hop_count:
-                node = random.choice(demand_node_list)
-                demand_node_list.remove(node)
-                satisfied_demand += demand_matrix[node, shelter]
-                node_count += 1            
+    while np.sum(demand_matrix) > 0.:
+        for shelter in shelter_node_dict.keys():
+            demand_node_list = shelter_node_dict[shelter]
 
-            random_gen_route_demand_list[-1].append(satisfied_demand)
-
-    #print(len(random_gen_route_demand_list[-1]))
+            while len(demand_node_list) > 0:
+                route, stop_point_list = get_route_random_selection(graph, demand_matrix, weight, min_hop_count, max_hop_count, demand_node_list, shelter)
+                # now to modify the demand matrix according to the serviced node's demand by this route
+                # node which has still non zero demand and will be made zero should be the stoppoint of route 
+                demand_matrix, satisfied_demand = set_demand_satisfied_in_route(demand_matrix, route, route[-1], stop_point_list)
+                gen_random_route_demand_stoppoint_tuple_list.append((route, satisfied_demand, stop_point_list))
+                yield route
 
 def get_return_route(graph, src_dest_pair):
     src = src_dest_pair[1]
@@ -228,12 +200,6 @@ def save_graph_as_json(distance_matrix, file_path):
 
     return graph
 
-
-def std_dev_calc(mean, samples):
-    sum_val = 0
-    for sample in samples:
-        sum_val += (sample - mean)**2
-    return math.sqrt(sum_val/len(samples))
 
 if __name__ == "__main__":
     if len(sys.argv) < 6:
@@ -269,7 +235,7 @@ if __name__ == "__main__":
     weight = float(sys.argv[5])
     max_hop_count = int(sys.argv[4])
     min_hop_count = 0
-    
+
     node_with_demand_count = 0
     for i in range(len(demand_matrix)):
         for j in range(len(demand_matrix[i])):
@@ -278,27 +244,42 @@ if __name__ == "__main__":
 
     demand_sum = np.sum(demand_matrix)
     demand_avg = demand_sum/math.ceil(node_with_demand_count/2)
-    graph_copy = copy.deepcopy(graph)
-    demand_matrix_copy = copy.deepcopy(demand_matrix)
-    routes = list(get_routes(graph, demand_matrix, weight, min_hop_count, max_hop_count))
 
-    for i in range(RANDOM_ROUTE_GENERATION_COUNT):
-        get_random_routes(graph_copy, demand_matrix_copy, weight, min_hop_count, max_hop_count)
-    
-    # print(len(routes))
-    balanced_demand = demand_sum / len(routes)
-    heuristic_route_demand_sqroot_deviation = std_dev_calc(balanced_demand, gen_route_demand_list)
+    for solution_no in range(RANDOM_ROUTE_GENERATION_COUNT):
+        routes = list(get_routes_random_selection(graph, demand_matrix, weight, min_hop_count, max_hop_count))
+        for route in routes:
+            try:
+                assert len(route) == len(set(route)), "node repeated in route"
+            except AssertionError as e:
+                pass
 
-    # print(sorted(gen_route_demand_list))
-    random_route_demand_sqroot_deviation_sample_sum = 0
-    for route_demand_list in random_gen_route_demand_list:
-        # print(sorted(route_demand_list))
-        # print(std_dev_calc(balanced_demand, route_demand_list))
-        random_route_demand_sqroot_deviation_sample_sum += std_dev_calc(balanced_demand, route_demand_list)
-    avg_random_route_demand_sqroot_deviation = random_route_demand_sqroot_deviation_sample_sum / len(random_gen_route_demand_list)
+        route_src_dest_pair_list_for_return_routes = []
+        
+        with open("routeset_random_selection_{0}_{1}_solution_{2}_result.txt".format(max_hop_count, weight, solution_no+1), "w") as fout:
+            for tup in sorted(gen_random_route_demand_stoppoint_tuple_list, key=lambda tup: tup[1], reverse=True):
+                return_route = get_return_route(graph, (tup[0][0], tup[0][-1]))
+                # at first list the stop point in route
+                for idx, node in enumerate(tup[2]):
+                    if idx > 0:
+                       fout.write(' ')
+                    fout.write(str(node))	
+                fout.write('\n')
+                # then write the route node + return route node
+                for idx, node in enumerate(tup[0]):
+                    fout.write(str(node)+' ')
+                for node_id in return_route[1:]:
+                    fout.write(str(node_id)+' ')
+                fout.write('\n')
 
-    print("=======================================================")
-    print("Max hop count : {0}".format(max_hop_count))
-    print("heuristic deviation : {0}".format(heuristic_route_demand_sqroot_deviation))
-    print("random route generation deviation : {0}".format(avg_random_route_demand_sqroot_deviation))
-    print("=======================================================")
+        with open("routeset_random_selection_{0}_{1}_solution_{2}_VAR_format.txt".format(max_hop_count, weight, solution_no+1), "w") as fout:
+            for tup in sorted(gen_random_route_demand_stoppoint_tuple_list, key=lambda tup: tup[1], reverse=True):
+                route = tup[0]            
+                fout.write("[")
+                for idx, node in enumerate(route):
+                    if idx > 0:
+                        fout.write(", " + str(node))
+                    else:
+                        fout.write(str(node))
+                fout.write("]")
+
+        gen_random_route_demand_stoppoint_tuple_list = []
